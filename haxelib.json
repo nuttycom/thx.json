@@ -1,0 +1,14 @@
+{
+  "name": "thx.json",
+  "url": "https://github.com/fponticelli/thx.json",
+  "license": "MIT",
+  "classPath": "src",
+  "tags": ["thx", "json"],
+  "description": "JSON AST for Haxe.",
+  "releasenote": "Initial Release",
+  "version": "0.0.1",
+  "contributors": ["nuttycom"],
+  "dependencies": {
+    "thx.core": ""
+  }
+}
