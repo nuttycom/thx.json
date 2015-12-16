@@ -1,0 +1,14 @@
+{
+  "dependencies": [
+    {
+      "name": "thx.core",
+      "type": "haxelib",
+      "version": "0.38.0"
+    },
+    {
+      "name": "utest",
+      "type": "haxelib",
+      "version": "1.3.10"
+    }
+  ]
+}
