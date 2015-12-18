@@ -24,7 +24,7 @@ class Render {
    */
   public static function renderUnsafe(jv: JValue): String {
     function renderAssoc(a: JAssoc): String
-      return '${a.name}:${renderUnsafe(a.value)}'; 
+      return '${quote(a.name)}:${renderUnsafe(a.value)}'; 
 
     return switch jv {
       case JString(s): quote(s);
