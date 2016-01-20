@@ -37,7 +37,7 @@ class TestRender {
 
   public function testRenderObject() {
     Assert.same(
-      Some("{a:1,b:2,c:[3,4]}"), 
+      Some('{"a":1,"b":2,"c":[3,4]}'), 
       render(
         JObject([
           {name:"a", value:JNum(1)}, 
