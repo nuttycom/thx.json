@@ -8,6 +8,7 @@ class TestAll {
   public static function main() {
     var runner = new Runner();
     runner.addCase(new TestRender());
+    runner.addCase(new TestJValue());
     Report.create(runner);
     runner.run();
   }

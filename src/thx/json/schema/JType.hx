@@ -1,5 +1,7 @@
 package thx.json.schema;
 
+import thx.json.JValue;
+
 enum JTypeADT {
   JArrayT;
   JBoolT;
