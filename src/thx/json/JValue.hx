@@ -24,10 +24,52 @@ enum JValueADT {
   JNull;
 }
 
-enum JPath {
+enum JPathADT {
   Property(name: String, tail: JPath);
   Index(idx: Int, tail: JPath);
   Empty;
+}
+
+abstract JPath (JPathADT) from JPathADT to JPathADT {
+  public function render(): String return switch this {
+    case Property(name, xs): 
+      if (xs == Empty) name else '${xs.render()}.$name';
+
+    case Index(idx, xs):
+      if (xs == Empty) '[$idx]' else '${xs.render()}[$idx]';
+
+    case Empty: "";
+  }
+
+  public static var root(get, null): JPath;
+  inline static function get_root(): JPath return Empty;
+
+  @:op(A / B)
+  public function property(name: String): JPath
+    return Property(name, this);
+  
+  @:arrayAccess
+  public function index(idx: Int): JPath
+    return Index(idx, this);
+
+  @:op(A + B)
+  public function append(other: JPath): JPath return switch other {
+    case Property(name, xs): Property(name, xs.append(other));
+    case Index(idx, xs): Index(idx, xs.append(other));                             
+    case Empty: this;
+  }
+
+  public function reverse(): JPath {
+    function go(path: JPath, acc: JPath): JPath {
+      return switch path {
+        case Property(name, xs): go(xs, Property(name, acc));
+        case Index(idx, xs): go(xs, Index(idx, acc));
+        case Empty: acc;
+      };
+    }
+
+    return go(this, Empty);
+  }
 }
 
 enum JPathError {
@@ -50,8 +92,12 @@ abstract JValue (JValueADT) from JValueADT to JValueADT {
   public static function jObject(m: Map<String, JValue>): JValue
     return JObject(m.tuples().map(function(t) return { name: t._0, value: t._1 }));
 
+  public function get(path: JPath): Either<JSearchError, JValue> {
+    return get_(path.reverse()).run();
+  }
+
   @:op(A / B)
-  public function getProperty(name: String): JSearch return {
+  public function prop(name: String): JSearch return {
     path : Property(name, Empty),
     value: switch this {
       case JObject(xs): 
@@ -66,7 +112,7 @@ abstract JValue (JValueADT) from JValueADT to JValueADT {
   };
 
   @:arrayAccess
-  public function getIndex(idx: Int): JSearch return {
+  public function index(idx: Int): JSearch return {
     path: Index(idx, Empty),
     value: switch this {
       case JArray(xs): 
@@ -75,19 +121,32 @@ abstract JValue (JValueADT) from JValueADT to JValueADT {
         Left(TypeMismatch(JArrayT, other));
     }
   };
+
+  function get_(path: JPath): JSearch return switch path {
+    case Property(name, xs): prop(name).flatMap(function(jv) return jv.get_(xs));
+    case Index(idx, xs):     index(idx).flatMap(function(jv) return jv.get_(xs));
+    case Empty:              { path: path, value: Right(this) };
+  };
 }
 
 abstract JSearch ({ path: JPath, value: Either<JPathError, JValue> }) from { path: JPath, value: Either<JPathError, JValue> } {
   inline public function repr(): { path: JPath, value: Either<JPathError, JValue> } return this;
 
+  public function flatMap(f: JValue -> JSearch): JSearch return switch this.value {
+    case Left(error): this;
+    case Right(jv):   
+      var next = f(jv);
+      { path: this.path + next.repr().path, value: next.repr().value };
+  };
+
   @:op(A / B)
-  public function getProperty(name: String): JSearch return switch this.value {
+  public function prop(name: String): JSearch return switch this.value {
     case Left(error): this;
     case Right(jv):   { path: Property(name, this.path), value: (jv / name).repr().value };
   };
 
   @:arrayAccess
-  public function getIndex(idx: Int): JSearch return switch this.value {
+  public function index(idx: Int): JSearch return switch this.value {
     case Left(error): this;
     case Right(jv):   { path: Index(idx, this.path), value: jv[idx].repr().value };
   };

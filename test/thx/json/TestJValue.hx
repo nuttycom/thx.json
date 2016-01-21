@@ -36,5 +36,3 @@ class TestJValue {
     Assert.same(Left({ path: Property("y", Index(0, Property("c", Empty))), error: NoSuchProperty("y", ox) }), ((obj / "c")[0] / "y").run());
   }
 }
-
-
