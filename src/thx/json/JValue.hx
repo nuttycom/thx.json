@@ -48,12 +48,15 @@ abstract JPath (JPathADT) from JPathADT to JPathADT {
   public function property(name: String): JPath
     return Property(name, this);
   
-  @:arrayAccess
+  // fun fact: in haXe, multiplication and division have the same precedence,
+  // and always associate to the left. So we can use * for array indexing,
+  // and avoid a lot of spurious parentheses when creating complex paths.
+  @:op(A * B)
   public function index(idx: Int): JPath
     return Index(idx, this);
 
   @:op(A + B)
-  public function append(other: JPath): JPath return switch other {
+  public function append(other: JPath): JPath return switch this {
     case Property(name, xs): Property(name, xs.append(other));
     case Index(idx, xs): Index(idx, xs.append(other));                             
     case Empty: this;
@@ -76,6 +79,14 @@ enum JPathError {
   NoSuchProperty(name: String, object: JValue);
   IndexOutOfRange(idx: Int, array: JValue);
   TypeMismatch(expected: JType, found: JValue);
+}
+
+class JPathErrorExtensions {
+  public static function toString(error: JPathError): String return switch error {
+    case NoSuchProperty(name, object):  'Property $name not found in object ${Render.renderUnsafe(object)}';
+    case IndexOutOfRange(idx, array):   'Index $idx out of range in array ${Render.renderUnsafe(array)}';
+    case TypeMismatch(expected, found): '${Render.renderUnsafe(found)} is not a value of type $expected';
+  }
 }
 
 abstract JValue (JValueADT) from JValueADT to JValueADT {
@@ -122,11 +133,18 @@ abstract JValue (JValueADT) from JValueADT to JValueADT {
     }
   };
 
+  @:op(A * B)
+  inline public function altIndex(idx: Int): JSearch return index(idx);
+
   function get_(path: JPath): JSearch return switch path {
     case Property(name, xs): prop(name).flatMap(function(jv) return jv.get_(xs));
     case Index(idx, xs):     index(idx).flatMap(function(jv) return jv.get_(xs));
     case Empty:              { path: path, value: Right(this) };
   };
+
+  public function toString() {
+    return Render.renderUnsafe(this);
+  }
 }
 
 abstract JSearch ({ path: JPath, value: Either<JPathError, JValue> }) from { path: JPath, value: Either<JPathError, JValue> } {
@@ -145,7 +163,10 @@ abstract JSearch ({ path: JPath, value: Either<JPathError, JValue> }) from { pat
     case Right(jv):   { path: Property(name, this.path), value: (jv / name).repr().value };
   };
 
-  @:arrayAccess
+  // fun fact: in haXe, multiplication and division have the same precedence,
+  // and always associate to the left. So we can use * for array indexing,
+  // and avoid a lot of spurious parentheses when creating complex paths.
+  @:op(A * B)
   public function index(idx: Int): JSearch return switch this.value {
     case Left(error): this;
     case Right(jv):   { path: Index(idx, this.path), value: jv[idx].repr().value };
