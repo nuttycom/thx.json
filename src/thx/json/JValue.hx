@@ -73,6 +73,14 @@ abstract JPath (JPathADT) from JPathADT to JPathADT {
 
     return go(this, Empty);
   }
+
+  public function toString() {
+    return switch this {
+      case Property(name, xs): '${xs.toString()}/$name';
+      case Index(idx, xs): '${xs.toString()}[$idx]';
+      case Empty: "";
+    };
+  }
 }
 
 enum JPathError {
