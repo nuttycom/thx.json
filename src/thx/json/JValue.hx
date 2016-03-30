@@ -98,18 +98,18 @@ class JPathErrorExtensions {
 }
 
 abstract JValue (JValueADT) from JValueADT to JValueADT {
-  inline public static function jString(s: String): JValue return JString(s);
-  inline public static function jNum(x: Float): JValue return JNum(x);
-  inline public static function jBool(b: Bool): JValue return JBool(b);
+  inline public static function jString(s: String): JValue return (s == null) ? JNull : JString(s);
+  inline public static function jNum(x: Float): JValue return (x == null) ? JNull : JNum(x);
+  inline public static function jBool(b: Bool): JValue return (b == null) ? JNull : JBool(b);
 
   public static var jNull(get, null): JValue;
   inline static function get_jNull(): JValue return JNull;
 
   inline public static function jArray(xs: Array<JValue>): JValue
-    return JArray(xs);
+    return (xs == null) ? JNull : JArray(xs);
 
   public static function jObject(m: Map<String, JValue>): JValue
-    return JObject(m.tuples().map(function(t) return { name: t._0, value: t._1 }));
+    return (m == null) ? JNull : JObject(m.tuples().map(function(t) return { name: t._0, value: t._1 }));
 
   public function get(path: JPath): Either<JSearchError, JValue> {
     return get_(path.reverse()).run();
