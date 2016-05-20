@@ -3,7 +3,7 @@
     {
       "name": "thx.core",
       "type": "haxelib",
-      "version": "0.38.0"
+      "version": "0.40.1"
     },
     {
       "name": "utest",
