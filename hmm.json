@@ -6,6 +6,13 @@
       "version": "0.40.1"
     },
     {
+      "name": "thx.schema",
+      "type": "git",
+      "dir": "",
+      "ref": "master",
+      "url": "git@github.com:nuttycom/thx.schema"
+    },
+    {
       "name": "utest",
       "type": "haxelib",
       "version": "1.3.10"

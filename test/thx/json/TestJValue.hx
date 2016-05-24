@@ -11,8 +11,6 @@ import thx.json.JValue.JPath.*;
 import thx.json.JValue.JSearch;
 import thx.json.schema.JType;
 
-
-
 class TestJValue {
   static var ox = jObject([ "x" => jNum(3) ]);
   static var arr = jArray([ox, jNum(4)]);
