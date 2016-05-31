@@ -111,6 +111,9 @@ class SchemaExtensions {
 
       case IsoSchema(base, f, _): 
         parseJSON0(base, v, path).map(f);
+
+      case LazySchema(base):
+        parseJSON0(base(), v, path);
     };
   }
 
@@ -132,6 +135,7 @@ class SchemaExtensions {
           case UnitSchema: successNel(null);
           case ObjectSchema(propSchema): parseObject(propSchema, value, path);
           case IsoSchema(base, f, _): parseAlternative(id, base, value, path).map(f);
+          case LazySchema(base): parseAlternative(id, base(), value, path);
           case other: parseAltPrimitive(other, assocs); 
         };
 
@@ -214,14 +218,18 @@ class SchemaExtensions {
 
         switch selected {
           case []: 
-            throw new thx.Error('None of ${alternatives.map.fn(_.id())} could convert the value $value to the base type ${schema.stype()}');
+            throw new thx.Error('None of ${alternatives.map.fn(_.id())} could convert the value $value to the base type ${thx.schema.SchemaExtensions.stype(schema)}');
 
           case other: 
             other.head();
             //'Ambiguous value $value: multiple alternatives for ${schema.metadata().title} (all of ${other.map(Render.renderUnsafe)}) claim to be valid renderings.';
         }
 
-      case IsoSchema(base, _, g): renderJSON(base, g(value));
+      case IsoSchema(base, _, g): 
+        renderJSON(base, g(value));
+
+      case LazySchema(base):
+        renderJSON(base(), value);
     }
   }
 
