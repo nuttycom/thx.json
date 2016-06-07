@@ -2,8 +2,10 @@
   "dependencies": [
     {
       "name": "thx.core",
-      "type": "haxelib",
-      "version": "0.40.1"
+      "type": "git",
+      "dir": "",
+      "ref": "master",
+      "url": "git@github.com:fponticelli/thx.core"
     },
     {
       "name": "thx.schema",
