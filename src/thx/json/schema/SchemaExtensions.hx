@@ -1,13 +1,16 @@
 package thx.json.schema;
 
 import haxe.ds.Option;
+import haxe.ds.StringMap;
 
+import thx.Strings;
 import thx.Unit;
 import thx.Validation;
 import thx.Validation.*;
 import thx.fp.Writer;
 using thx.Arrays;
 using thx.Functions;
+using thx.Maps;
 using thx.Options;
 
 import thx.Validation;
@@ -70,6 +73,20 @@ class SchemaExtensions {
         switch v {
           case JArray(values): values.traverseValidationIndexed(function(v, i) return parseJSON0(elemSchema, v, path * i), Nel.semigroup());
           case other: fail('Value ${Render.renderUnsafe(v)} is not a JSON array.', path);
+        };
+
+      case MapSchema(elemSchema):
+        switch v {
+          case JObject(assocs): 
+            var validatedAssocs = assocs.traverseValidation(
+               function(v) return parseJSON0(elemSchema, v.value, path / v.name).map(Tuple.of.bind(v.name, _)), 
+               Nel.semigroup()
+            );
+
+            validatedAssocs.map(Arrays.toStringMap);
+
+          case other: 
+            fail('Value ${Render.renderUnsafe(v)} is not a JSON object.', path);
         };
 
       case OneOfSchema(alternatives):
@@ -196,6 +213,8 @@ class SchemaExtensions {
       case ObjectSchema(propSchema): renderObject(propSchema, value);
                           
       case ArraySchema(elemSchema): jArray(value.map(renderJSON.bind(elemSchema, _)));
+
+      case MapSchema(elemSchema): jObject(value.mapValues(renderJSON.bind(elemSchema, _), new Map()));
 
       case OneOfSchema(alternatives): 
         var selected: Array<JValue> = alternatives.flatMap(
