@@ -90,21 +90,21 @@ class SchemaExtensions {
         };
 
       case OneOfSchema(alternatives):
-        //if (useEnumStyle(alternatives)) {
-        //  // TODO: Handle non-string enumerations of constant values.
-        //  switch v {
-        //    case JString(s):
-        //      switch alternatives.findOption.fn(_.id() == s) {
-        //        case Some(Prism(id, base, f, _)):
-        //          parseJSON0(base, v, path / id).map(f);
+        if (alternatives.all(function(a) return a.isConstantAlt())) {
+          trace("All alternatives are constantAlt");
+          switch v {
+            case JString(s):
+              trace('Parsed ${Render.renderUnsafe(v)} as $s');
+              var id0 = s.toLowerCase();
+              switch alternatives.findOption.fn(_.id().toLowerCase() == id0) {
+                case Some(Prism(id, base, f, _)): parseJSON0(base, jNull, path / id).map(f);
+                case None: fail('Value ${Render.renderUnsafe(v)} cannot be mapped to any of ${alternatives.map.fn(_.id())}.', path);
+              };
 
-        //        case None:
-        //          fail('Value ${Render.renderUnsafe(v)} cannot be mapped to any known value of the enum.', path);
-        //      };
-        //    case other: 
-        //      fail('Value ${Render.renderUnsafe(v)} is not a JSON string.', path);
-        //  }
-        //} else {
+            case other: 
+              fail('Value ${Render.renderUnsafe(v)} is not a JSON string.', path);
+          }
+        } else {
           switch v {
             case JObject(assocs): 
               // This is specific to the encoding which demands that exactly one of the map's keys is 
@@ -124,7 +124,7 @@ class SchemaExtensions {
             case other: 
               fail('Value ${Render.renderUnsafe(v)} is not a JSON object.', path);
           }
-        //}
+        }
 
       case IsoSchema(base, f, _): 
         parseJSON0(base, v, path).map(f);
@@ -142,7 +142,7 @@ class SchemaExtensions {
     function parseAltPrimitive<X>(schema: Schema<X>, assocs: Array<JAssoc>): VNel<ParseError, X> {
       return switch assocs.findOption.fn(_.name == id) {
         case Some(v): parseJSON0(schema, v.value, path / id);
-        case None: fail('Object ${Render.renderUnsafe(value)} does not contain required property "value"', path);
+        case None: fail('Object ${Render.renderUnsafe(value)} does not contain required property $id', path);
       };
     }
 
@@ -150,7 +150,6 @@ class SchemaExtensions {
       case JObject(assocs):
         switch schema {
           case UnitSchema: successNel(null);
-          case ObjectSchema(propSchema): parseObject(propSchema, value, path);
           case IsoSchema(base, f, _): parseAlternative(id, base, value, path).map(f);
           case LazySchema(base): parseAlternative(id, base(), value, path);
           case other: parseAltPrimitive(other, assocs); 
@@ -194,14 +193,6 @@ class SchemaExtensions {
     };
   }
 
-  // private static function useEnumStyle<A>(alternatives: Array<Alternative<A>>): Bool {
-  //   return alternatives.all(
-  //     function(alt) return switch alt {
-  //       case Prism(_, base, _, _): base.nullMeta().toBool();
-  //     }
-  //   );
-  // }
-
   public static function renderJSON<A>(schema: Schema<A>, value: A): JValue {
     return switch schema {
       case BoolSchema:  jBool(value);
@@ -220,28 +211,20 @@ class SchemaExtensions {
         var selected: Array<JValue> = alternatives.flatMap(
           function(alt) return switch alt {
             case Prism(id, base, _, g): 
-              g(value).map(
-                function(b) {
-                  //return if (useEnumStyle(alternatives)) {
-                  //  JString(id); 
-                  //} else {
-                    return switch renderJSON(base, b) {
-                      case JObject(assocs): JObject([{ name: id, value: JNull }].concat(assocs));
-                      case other: JObject([{ name: id, value: other }]); 
-                    };
-                  //}
+              return g(value).map(
+                function(b) return if (alternatives.all.fn(_.isConstantAlt())) {
+                  jString(id); 
+                } else {
+                  jObject([id => renderJSON(base, b) ]);
                 }
               ).toArray();
           }
         );
 
         switch selected {
-          case []: 
-            throw new thx.Error('None of ${alternatives.map.fn(_.id())} could convert the value $value to the base type ${thx.schema.SchemaExtensions.stype(schema)}');
-
-          case other: 
-            other.head();
-            //'Ambiguous value $value: multiple alternatives for ${schema.metadata().title} (all of ${other.map(Render.renderUnsafe)}) claim to be valid renderings.';
+          case [result]: result;
+          case []:   throw new thx.Error('None of ${alternatives.map.fn(_.id())} could convert the value $value to the base type ${schema.stype()}');
+          case mult: throw new thx.Error('Ambiguous value $value: (all of ${mult.map(Render.renderUnsafe)}) claim to be valid renderings.');
         }
 
       case IsoSchema(base, _, g): 
