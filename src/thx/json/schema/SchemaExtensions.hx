@@ -91,10 +91,8 @@ class SchemaExtensions {
 
       case OneOfSchema(alternatives):
         if (alternatives.all(function(a) return a.isConstantAlt())) {
-          trace("All alternatives are constantAlt");
           switch v {
             case JString(s):
-              trace('Parsed ${Render.renderUnsafe(v)} as $s');
               var id0 = s.toLowerCase();
               switch alternatives.findOption.fn(_.id().toLowerCase() == id0) {
                 case Some(Prism(id, base, f, _)): parseJSON0(base, jNull, path / id).map(f);
