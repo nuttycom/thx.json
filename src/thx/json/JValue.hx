@@ -1,5 +1,10 @@
 package thx.json;
 
+#if (haxe_ver >= 3.200)
+import haxe.Constraints.IMap;
+#else
+import Map.IMap;
+#end
 import haxe.ds.Option;
 import thx.Either;
 import thx.json.schema.JType;
@@ -108,7 +113,7 @@ abstract JValue (JValueADT) from JValueADT to JValueADT {
   inline public static function jArray(xs: Array<JValue>): JValue
     return (xs == null) ? JNull : JArray(xs);
 
-  public static function jObject(m: Map<String, JValue>): JValue
+  public static function jObject(m: IMap<String, JValue>): JValue
     return (m == null) ? JNull : JObject(m.tuples().map(function(t) return { name: t._0, value: t._1 }));
 
   public function get(path: JPath): Either<JSearchError, JValue> {
