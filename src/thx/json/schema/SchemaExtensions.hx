@@ -137,7 +137,7 @@ class SchemaExtensions {
    * are private helpers for the parse and jsonSchema functions, respectively
    */ 
   private static function parseAlternative<A>(id: String, schema: Schema<A>, value: JValue, path: JPath): VNel<ParseError, A> {
-    function parseAltPrimitive<X>(schema: Schema<X>, assocs: Array<JAssoc>): VNel<ParseError, X> {
+    function parseAltPrimitive<X>(schema: Schema<X>, assocs: ReadonlyArray<JAssoc>): VNel<ParseError, X> {
       return switch assocs.findOption.fn(_.name == id) {
         case Some(v): parseJSON0(schema, v.value, path / id);
         case None: fail('Object ${Render.renderUnsafe(value)} does not contain required property $id', path);

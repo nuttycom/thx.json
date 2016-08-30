@@ -24,8 +24,8 @@ enum JValueADT {
   JString(s: String);
   JNum(x: Float);
   JBool(b: Bool);
-  JArray(xs: Array<JValue>);
-  JObject(xs: Array<JAssoc>);
+  JArray(xs: ReadonlyArray<JValue>);
+  JObject(xs: ReadonlyArray<JAssoc>);
   JNull;
 }
 
@@ -110,7 +110,7 @@ abstract JValue (JValueADT) from JValueADT to JValueADT {
   public static var jNull(get, null): JValue;
   inline static function get_jNull(): JValue return JNull;
 
-  inline public static function jArray(xs: Array<JValue>): JValue
+  inline public static function jArray(xs: ReadonlyArray<JValue>): JValue
     return (xs == null) ? JNull : JArray(xs);
 
   public static function jObject(m: IMap<String, JValue>): JValue
