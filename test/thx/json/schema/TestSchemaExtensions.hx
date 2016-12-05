@@ -13,9 +13,10 @@ import thx.json.JValue.JPath.*;
 import thx.json.JValue.JSearch;
 using thx.json.schema.SchemaExtensions;
 
-import thx.schema.Schema;
+import thx.schema.SchemaF;
+import thx.schema.SchemaDSL;
 import thx.schema.SchemaDSL.*;
-using thx.schema.SchemaExtensions;
+using thx.schema.SchemaFExtensions;
 
 
 class TSimple {
@@ -25,7 +26,8 @@ class TSimple {
     this.x = x;
   }
 
-  public static var schema(default, never): Schema<TSimple> = object(required("x", int, function(ts: TSimple) return ts.x).map(TSimple.new));
+  public static var schema(default, never): Schema<String, TSimple> = 
+    object(required("x", int(), function(ts: TSimple) return ts.x).map(TSimple.new));
 }
 
 enum TEnum {
@@ -37,7 +39,7 @@ enum TEnum {
 class TEnums {
   public static var eq(default, never) = function (e0: TEnum, e1: TEnum) return e0 == e1;
 
-  public static var schema: Schema<TEnum> = oneOf([
+  public static var schema: Schema<String, TEnum> = oneOf([
     constAlt("a", A, eq),
     constAlt("b", B, eq),
     constAlt("c", C, eq)
@@ -51,9 +53,9 @@ enum TSum {
 }
 
 class TSums {
-  public static var schema: Schema<TSum> = oneOf([
+  public static var schema: Schema<String, TSum> = oneOf([
     alt("ex", TSimple.schema, function(s) return EX(s), function(e: TSum) return switch e { case EX(s): Some(s); case _: None; }),
-    alt("ey", string,       function(s) return EY(s), function(e: TSum) return switch e { case EY(s): Some(s); case _: None; }),
+    alt("ey", string(),       function(s) return EY(s), function(e: TSum) return switch e { case EY(s): Some(s); case _: None; }),
     alt("ez", constant(EZ), function(s) return EZ   , function(e: TSum) return switch e { case EZ:    Some(null); case _: None; })
   ]);
 }
@@ -73,12 +75,12 @@ class TComplex {
     this.e = e;
   }
 
-  public static var schema(default, never): Schema<TComplex> = object(
+  public static var schema(default, never): Schema<String, TComplex> = object(
     ap5(
       TComplex.new,
-      required("i", int, function(tc: TComplex) return tc.i), 
-      required("f", float, function(tc: TComplex) return tc.f), 
-      required("b", bool, function(tc: TComplex) return tc.b), 
+      required("i", int(), function(tc: TComplex) return tc.i), 
+      required("f", float(), function(tc: TComplex) return tc.f), 
+      required("b", bool(), function(tc: TComplex) return tc.b), 
       required("a", array(TSimple.schema), function(tc: TComplex) return tc.a), 
       optional("e", TSums.schema, function(tc: TComplex) return tc.e)
     )

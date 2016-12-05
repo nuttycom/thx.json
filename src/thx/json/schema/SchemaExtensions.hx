@@ -14,25 +14,25 @@ using thx.Maps;
 using thx.Options;
 
 import thx.Validation;
-import thx.schema.Schema;
-import thx.schema.Schema.Schema;
+import thx.schema.SchemaF;
+import thx.schema.SchemaDSL;
 import thx.schema.SchemaDSL.*;
-using thx.schema.SchemaExtensions;
+using thx.schema.SchemaFExtensions;
 
 import thx.json.JValue;
 import thx.json.JValue.*;
 
 class SchemaExtensions {
-  inline static public function fail<A>(message: String, path: JPath): VNel<ParseError, A>
+  inline static public function fail<A>(message: String, path: JPath): VNel<ParseError<String>, A>
     return failureNel(new ParseError(message, path));
 
-  public static function parseJSON<A>(schema: Schema<A>, v: JValue): VNel<ParseError, A> {
+  public static function parseJSON<A, E>(schema: Schema<String, A>, v: JValue): VNel<ParseError<String>, A> {
     return parseJSON0(schema, v, JPath.root);
   }
 
-  private static function parseJSON0<A>(schema: Schema<A>, v: JValue, path: JPath): VNel<ParseError, A> {
+  private static function parseJSON0<A>(schema: Schema<String, A>, v: JValue, path: JPath): VNel<ParseError<String>, A> {
     // helper function used to unpack existential type I
-    return switch schema {
+    return switch schema.schema {
       case IntSchema:
         switch v {
           case JNum(n): 
@@ -60,9 +60,9 @@ class SchemaExtensions {
           case other: fail('Value ${Render.renderUnsafe(v)} is not a JSON boolean value.', path);
         };
 
-      case UnitSchema: 
+      case ConstSchema(a): 
         switch v {
-          case JNull: successNel(unit);
+          case JNull: successNel(a);
           case other: fail('Value ${Render.renderUnsafe(v)} is not JSON null.', path);
         };
 
@@ -124,8 +124,13 @@ class SchemaExtensions {
           }
         }
 
-      case IsoSchema(base, f, _): 
-        parseJSON0(base, v, path).map(f);
+      case ParseSchema(base, f, _): 
+        parseJSON0(base, v, path).flatMapV(
+          function(v0) return switch f(v0) {
+            case PSuccess(a): successNel(a);
+            case PFailure(err, _): fail(err, path);
+          }
+        );
 
       case LazySchema(base):
         parseJSON0(base(), v, path);
@@ -136,8 +141,8 @@ class SchemaExtensions {
    * This helper function is the companion to alternativeSchema; both
    * are private helpers for the parse and jsonSchema functions, respectively
    */ 
-  private static function parseAlternative<A>(id: String, schema: Schema<A>, value: JValue, path: JPath): VNel<ParseError, A> {
-    function parseAltPrimitive<X>(schema: Schema<X>, assocs: ReadonlyArray<JAssoc>): VNel<ParseError, X> {
+  private static function parseAlternative<A>(id: String, schema: Schema<String, A>, value: JValue, path: JPath): VNel<ParseError<String>, A> {
+    function parseAltPrimitive<X>(schema: Schema<String, X>, assocs: ReadonlyArray<JAssoc>): VNel<ParseError<String>, X> {
       return switch assocs.findOption.fn(_.name == id) {
         case Some(v): parseJSON0(schema, v.value, path / id);
         case None: fail('Object ${Render.renderUnsafe(value)} does not contain required property $id', path);
@@ -146,11 +151,18 @@ class SchemaExtensions {
 
     return switch value {
       case JObject(assocs):
-        switch schema {
-          case UnitSchema: successNel(null);
-          case IsoSchema(base, f, _): parseAlternative(id, base, value, path).map(f);
+        switch schema.schema {
+          case ConstSchema(a): successNel(a);
+          case ParseSchema(base, f, _): 
+            parseAlternative(id, base, value, path).flatMapV(
+              function(baseValue) return switch f(baseValue) {
+                case PSuccess(a): successNel(a);
+                case PFailure(e, s): fail(e, path);
+
+              }
+            );
           case LazySchema(base): parseAlternative(id, base(), value, path);
-          case other: parseAltPrimitive(other, assocs); 
+          case _: parseAltPrimitive(schema, assocs); 
         };
 
       case other:
@@ -158,10 +170,10 @@ class SchemaExtensions {
     };
   }
 
-  private static function parseObject<O, A>(builder: ObjectBuilder<O, A>, v: JValue, path: JPath): VNel<ParseError, A> {
+  private static function parseObject<O, A>(builder: ObjectBuilder<String, Unit, O, A>, v: JValue, path: JPath): VNel<ParseError<String>, A> {
     // helper function used to unpack existential type I
-    inline function go<I>(schema: PropSchema<O, I>, k: ObjectBuilder<O, I -> A>): VNel<ParseError, A> {
-      var parsed: VNel<ParseError, I> = switch v {
+    inline function go<I>(schema: PropSchema<String, Unit, O, I>, k: ObjectBuilder<String, Unit, O, I -> A>): VNel<ParseError<String>, A> {
+      var parsed: VNel<ParseError<String>, I> = switch v {
         case JObject(assocs):
           switch schema {
             case Required(fieldName, valueSchema, _):
@@ -191,13 +203,13 @@ class SchemaExtensions {
     };
   }
 
-  public static function renderJSON<A>(schema: Schema<A>, value: A): JValue {
-    return switch schema {
+  public static function renderJSON<E, A>(schema: Schema<E, A>, value: A): JValue {
+    return switch schema.schema {
       case BoolSchema:  jBool(value);
       case FloatSchema: jNum(value);
       case IntSchema:   jNum(value * 1.0);
       case StrSchema:   jString(value);
-      case UnitSchema:  jNull;
+      case ConstSchema(_):  jNull;
 
       case ObjectSchema(propSchema): renderObject(propSchema, value);
                           
@@ -221,11 +233,11 @@ class SchemaExtensions {
 
         switch selected {
           case [result]: result;
-          case []:   throw new thx.Error('None of ${alternatives.map.fn(_.id())} could convert the value $value to the base type ${schema.stype()}');
+          case []:   throw new thx.Error('None of ${alternatives.map.fn(_.id())} could convert the value $value to the base type ${schema.schema.stype()}');
           case mult: throw new thx.Error('Ambiguous value $value: (all of ${mult.map(Render.renderUnsafe)}) claim to be valid renderings.');
         }
 
-      case IsoSchema(base, _, g): 
+      case ParseSchema(base, _, g): 
         renderJSON(base, g(value));
 
       case LazySchema(base):
@@ -233,13 +245,13 @@ class SchemaExtensions {
     }
   }
 
-  public static function renderObject<A>(builder: ObjectBuilder<A, A>, value: A): JValue {
+  public static function renderObject<E, A>(builder: ObjectBuilder<E, Unit, A, A>, value: A): JValue {
     return JObject(evalRO(builder, value).runLog());
   }
 
   // should be inside renderObject, but haxe doesn't let you write corecursive
   // functions as inner functions
-  private static function evalRO<O, X>(builder: ObjectBuilder<O, X>, value: O): Writer<Array<JAssoc>, X>
+  private static function evalRO<E, O, A>(builder: ObjectBuilder<E, Unit, O, A>, value: O): Writer<Array<JAssoc>, A>
     return switch builder {
       case Pure(a): Writer.pure(a, wm);
       case Ap(s, k): goRO(s, k, value);
@@ -247,7 +259,7 @@ class SchemaExtensions {
 
   // should be inside renderObject, but haxe doesn't let you write corecursive
   // functions as inner functions
-  private static function goRO<O, I, J>(schema: PropSchema<O, I>, k: ObjectBuilder<O, I -> J>, value: O): Writer<Array<JAssoc>, J> {
+  private static function goRO<E, O, I, J>(schema: PropSchema<E, Unit, O, I>, k: ObjectBuilder<E, Unit, O, I -> J>, value: O): Writer<Array<JAssoc>, J> {
     var action: Writer<Array<JAssoc>, I> = switch schema {
       case Required(field, valueSchema, accessor):
         var i0 = accessor(value);
@@ -267,16 +279,16 @@ class SchemaExtensions {
   private static var wm(default, never): Monoid<Array<JAssoc>> = Arrays.monoid();
 }
 
-class ParseError {
-  public var message(default, null): String;
+class ParseError<E> {
+  public var error(default, null): E;
   public var path(default, null): JPath;
 
-  public function new(message: String, path: JPath) {
-    this.message = message;
+  public function new(error: E, path: JPath) {
+    this.error = error;
     this.path = path;
   }
 
   public function toString(): String {
-    return '${path.toString()}: ${message}';
+    return '${path.toString()}: ${error}';
   }
 }

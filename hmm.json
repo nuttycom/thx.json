@@ -3,15 +3,13 @@
     {
       "name": "thx.core",
       "type": "git",
-      "dir": "",
-      "ref": "8bf663e0",
+      "ref": "4eb62e75",
       "url": "git@github.com:fponticelli/thx.core"
     },
     {
       "name": "thx.schema",
       "type": "git",
-      "dir": "",
-      "ref": "master",
+      "ref": "0126f708",
       "url": "git@github.com:nuttycom/thx.schema"
     },
     {
