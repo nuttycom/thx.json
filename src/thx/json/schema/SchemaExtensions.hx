@@ -3,6 +3,7 @@ package thx.json.schema;
 import haxe.ds.Option;
 import haxe.ds.StringMap;
 
+import thx.Any;
 import thx.Strings;
 import thx.Unit;
 import thx.Validation;
@@ -65,6 +66,9 @@ class SchemaExtensions {
           case JNull: successNel(a);
           case other: fail('Value ${Render.renderUnsafe(v)} is not JSON null.', path);
         };
+
+      case AnySchema: 
+        successNel(Any.ofValue(v));
 
       case ObjectSchema(propSchema):
         parseObject(propSchema, v, path);
@@ -170,9 +174,9 @@ class SchemaExtensions {
     };
   }
 
-  private static function parseObject<O, A>(builder: ObjectBuilder<String, Unit, O, A>, v: JValue, path: JPath): VNel<ParseError<String>, A> {
+  private static function parseObject<O, A>(builder: PropsBuilder<String, Unit, O, A>, v: JValue, path: JPath): VNel<ParseError<String>, A> {
     // helper function used to unpack existential type I
-    inline function go<I>(schema: PropSchema<String, Unit, O, I>, k: ObjectBuilder<String, Unit, O, I -> A>): VNel<ParseError<String>, A> {
+    inline function go<I>(schema: PropSchema<String, Unit, O, I>, k: PropsBuilder<String, Unit, O, I -> A>): VNel<ParseError<String>, A> {
       var parsed: VNel<ParseError<String>, I> = switch v {
         case JObject(assocs):
           switch schema {
@@ -210,6 +214,7 @@ class SchemaExtensions {
       case IntSchema:   jNum(value * 1.0);
       case StrSchema:   jString(value);
       case ConstSchema(_):  jNull;
+      case AnySchema:       jNull; // cannot render Any to JSON
 
       case ObjectSchema(propSchema): renderObject(propSchema, value);
                           
@@ -245,13 +250,13 @@ class SchemaExtensions {
     }
   }
 
-  public static function renderObject<E, A>(builder: ObjectBuilder<E, Unit, A, A>, value: A): JValue {
+  public static function renderObject<E, A>(builder: ObjectBuilder<E, Unit, A>, value: A): JValue {
     return JObject(evalRO(builder, value).runLog());
   }
 
   // should be inside renderObject, but haxe doesn't let you write corecursive
   // functions as inner functions
-  private static function evalRO<E, O, A>(builder: ObjectBuilder<E, Unit, O, A>, value: O): Writer<Array<JAssoc>, A>
+  private static function evalRO<E, O, A>(builder: PropsBuilder<E, Unit, O, A>, value: O): Writer<Array<JAssoc>, A>
     return switch builder {
       case Pure(a): Writer.pure(a, wm);
       case Ap(s, k): goRO(s, k, value);
@@ -259,7 +264,7 @@ class SchemaExtensions {
 
   // should be inside renderObject, but haxe doesn't let you write corecursive
   // functions as inner functions
-  private static function goRO<E, O, I, J>(schema: PropSchema<E, Unit, O, I>, k: ObjectBuilder<E, Unit, O, I -> J>, value: O): Writer<Array<JAssoc>, J> {
+  private static function goRO<E, O, I, J>(schema: PropSchema<E, Unit, O, I>, k: PropsBuilder<E, Unit, O, I -> J>, value: O): Writer<Array<JAssoc>, J> {
     var action: Writer<Array<JAssoc>, I> = switch schema {
       case Required(field, valueSchema, accessor):
         var i0 = accessor(value);
