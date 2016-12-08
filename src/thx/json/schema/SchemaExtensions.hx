@@ -180,18 +180,21 @@ class SchemaExtensions {
       var parsed: VNel<ParseError<String>, I> = switch v {
         case JObject(assocs):
           switch ps {
-            case Required(fieldName, valueSchema, _):
+            case Required(fieldName, valueSchema, _, dflt):
               switch assocs.findOption(function(a) return a.name == fieldName) {
                 case Some(assoc):
                   parseJSON0(valueSchema.schema, assoc.value, path / fieldName);
 
                 case None: 
-                  fail('Value ${Render.renderUnsafe(v)} does not contain key ${fieldName} and no default was available.', path);
+                  dflt.cata(
+                    fail('Value ${Render.renderUnsafe(v)} does not contain key ${fieldName} and no default was available.', path),
+                    successNel
+                  );
               };
 
-            case Optional(fieldName, valueSchema, _, dflt):
+            case Optional(fieldName, valueSchema, _):
               var assoc: Option<JAssoc> = assocs.findOption(function(a) return a.name == fieldName);
-              assoc.traverseValidation(function(a: JAssoc) return parseJSON0(valueSchema.schema, a.value, path / fieldName)).map.fn(_.orElse(dflt));
+              assoc.traverseValidation(function(a: JAssoc) return parseJSON0(valueSchema.schema, a.value, path / fieldName));
           };
 
         case other: 
@@ -270,13 +273,13 @@ class SchemaExtensions {
   // functions as inner functions
   private static function goRO<E, X, O, I, J>(ps: PropSchema<E, X, O, I>, k: PropsBuilder<E, X, O, I -> J>, value: O): Writer<Array<JAssoc>, J> {
     var action: Writer<Array<JAssoc>, I> = switch ps {
-      case Required(field, valueSchema, accessor):
+      case Required(field, valueSchema, accessor, _):
         var i0 = accessor(value);
         Writer.tell([{ name: field, value: renderJSON(valueSchema, i0) }], wm) >> 
         Writer.pure(i0, wm);
 
-      case Optional(field, valueSchema, accessor, dflt):
-        var i0 = accessor(value).orElse(dflt);
+      case Optional(field, valueSchema, accessor):
+        var i0 = accessor(value);
         Writer.tell(i0.map(function(v0) return { name: field, value: renderJSON(valueSchema, v0) }).toArray(), wm) >> 
         Writer.pure(i0, wm);
     }
