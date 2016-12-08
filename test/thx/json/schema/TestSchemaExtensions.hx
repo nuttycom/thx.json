@@ -98,9 +98,7 @@ class TestSchemaExtensions {
 
   public function testOneOf() {
     var rendered = TEnums.schema.renderJSON(B);
-    trace(rendered);
     var parsed = TEnums.schema.parseJSON(rendered);
-    trace(parsed);
     Assert.same(Right(B), parsed);
   }
 }

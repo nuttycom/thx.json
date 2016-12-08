@@ -189,9 +189,9 @@ class SchemaExtensions {
                   fail('Value ${Render.renderUnsafe(v)} does not contain key ${fieldName} and no default was available.', path);
               };
 
-            case Optional(fieldName, valueSchema, _):
+            case Optional(fieldName, valueSchema, _, dflt):
               var assoc: Option<JAssoc> = assocs.findOption(function(a) return a.name == fieldName);
-              assoc.traverseValidation(function(a: JAssoc) return parseJSON0(valueSchema, a.value, path / fieldName));
+              assoc.traverseValidation(function(a: JAssoc) return parseJSON0(valueSchema, a.value, path / fieldName)).map.fn(_.orElse(dflt));
           };
 
         case other: 
@@ -271,8 +271,8 @@ class SchemaExtensions {
         Writer.tell([{ name: field, value: renderJSON(valueSchema, i0) }], wm) >> 
         Writer.pure(i0, wm);
 
-      case Optional(field, valueSchema, accessor):
-        var i0 = accessor(value);
+      case Optional(field, valueSchema, accessor, dflt):
+        var i0 = accessor(value).orElse(dflt);
         Writer.tell(i0.map(function(v0) return { name: field, value: renderJSON(valueSchema, v0) }).toArray(), wm) >> 
         Writer.pure(i0, wm);
     }
