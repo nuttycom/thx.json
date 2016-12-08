@@ -14,8 +14,9 @@ import thx.json.JValue.JSearch;
 using thx.json.schema.SchemaExtensions;
 
 import thx.schema.SchemaF;
-import thx.schema.SchemaDSL;
 import thx.schema.SchemaDSL.*;
+import thx.schema.SimpleSchema;
+import thx.schema.SimpleSchema.*;
 using thx.schema.SchemaFExtensions;
 
 
