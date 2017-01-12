@@ -62,10 +62,7 @@ class SchemaExtensions {
         };
 
       case ConstSchema(a): 
-        switch v {
-          case JNull: successNel(a);
-          case other: fail('Value ${Render.renderUnsafe(v)} is not JSON null.', path);
-        };
+        successNel(a);
 
       case AnySchema: 
         successNel(Any.ofValue(v));
@@ -94,12 +91,11 @@ class SchemaExtensions {
         };
 
       case OneOfSchema(alternatives):
-        if (alternatives.all(function(a) return a.isConstantAlt())) {
+        if (alternatives.hasStringRepr()) {
           switch v {
             case JString(s):
-              var id0 = s.toLowerCase();
-              switch alternatives.findOption.fn(_.id().toLowerCase() == id0) {
-                case Some(Prism(id, base, f, _)): parseJSON0(base.schema, jNull, path / id).map(f);
+              switch alternatives.findAlt(s.toLowerCase()) {
+                case Some(Prism(id, base, f, _)): parseJSON0(base.schema, v, path / id).map(f);
                 case None: fail('Value ${Render.renderUnsafe(v)} cannot be mapped to any of ${alternatives.map.fn(_.id())}.', path);
               };
 
@@ -230,16 +226,16 @@ class SchemaExtensions {
       case MapSchema(elemSchema): jObject(value.mapValues(renderJSON.bind(elemSchema, _), new Map()));
 
       case OneOfSchema(alternatives): 
-        var selected: Array<JValue> = alternatives.flatMap(
+        var selected: Array<JValue> = alternatives.filterMap(
           function(alt) return switch alt {
             case Prism(id, base, _, g): 
-              return g(value).map(
-                function(b) return if (alternatives.all.fn(_.isConstantAlt())) {
-                  jString(id); 
+              g(value).map(
+                function(b) return if (alternatives.hasStringRepr()) {
+                  if (base.schema.isConstant()) jString(id) else renderJSON(base, b); 
                 } else {
-                  jObject([id => renderJSON(base, b) ]);
+                  jObject([id => renderJSON(base, b)]);
                 }
-              ).toArray();
+              );
           }
         );
 

@@ -88,6 +88,12 @@ class TComplex {
   );
 }
 
+enum TEnumStringRepr {
+  SA;
+  SB;
+  StringRepr(s: String);
+}
+
 class TestSchemaExtensions {
   public function new() { }
 
@@ -101,6 +107,23 @@ class TestSchemaExtensions {
     var rendered = TEnums.schema.renderJSON(B);
     var parsed = TEnums.schema.parseJSON(rendered);
     Assert.same(Right(B), parsed);
+  }
+
+  public function testEnumStringRepr() {
+    var schema = oneOf([
+      alt("sa", constant(SA), function(s) return SA, function(e: TEnumStringRepr) return switch e { case SA: Some(SA); case _: None; }),
+      alt("sb", constant(SB), function(s) return SB, function(e: TEnumStringRepr) return switch e { case SB: Some(SB); case _: None; }),
+      alt("str", string(), StringRepr, function(e: TEnumStringRepr) return switch e { case StringRepr(s): Some(s); case _: None; })
+    ]);
+
+    Assert.same(Right(StringRepr("hello")), schema.parseJSON(jString("hello")));
+    trace(schema.parseJSON(jString("sa")));
+    Assert.same(Right(SA), schema.parseJSON(jString("sa")));
+    Assert.same(Right(SB), schema.parseJSON(jString("sb")));
+
+    Assert.same(jString("hello"), schema.renderJSON(StringRepr("hello")));
+    Assert.same(jString("sa"), schema.renderJSON(SA));
+    Assert.same(jString("sb"), schema.renderJSON(SB));
   }
 }
 
