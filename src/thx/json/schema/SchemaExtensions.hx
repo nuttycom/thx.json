@@ -232,16 +232,11 @@ class SchemaExtensions {
       case MapSchema(elemSchema): jObject(value.mapValues(renderJSON.bind(elemSchema, _), new Map()));
 
       case OneOfSchema(alternatives): 
-        var selected: Array<JValue> = alternatives.flatMap(
+        var useConstantSchema = alternatives.all.fn(_.isConstantAlt());
+        var selected: Array<JValue> = alternatives.filterMap(
           function(alt) return switch alt {
             case Prism(id, base, _, g): 
-              return g(value).map(
-                function(b) return if (alternatives.all.fn(_.isConstantAlt())) {
-                  jString(id); 
-                } else {
-                  jObject([id => renderJSON(base, b) ]);
-                }
-              ).toArray();
+              g(value).map(function(b) return if (useConstantSchema) jString(id) else jObject([id => renderJSON(base, b) ]));
           }
         );
 
