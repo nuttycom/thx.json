@@ -14,6 +14,8 @@ using thx.Maps;
 using thx.Options;
 
 import thx.Validation;
+import thx.schema.SPath;
+import thx.schema.ParseError;
 import thx.schema.SchemaF;
 import thx.schema.SchemaDSL.*;
 import thx.schema.SimpleSchema;
@@ -24,14 +26,14 @@ import thx.json.JValue;
 import thx.json.JValue.*;
 
 class SchemaExtensions {
-  inline static public function fail<A>(message: String, path: JPath): VNel<ParseError<String>, A>
+  inline static public function fail<A>(message: String, path: SPath): VNel<ParseError<String>, A>
     return failureNel(new ParseError(message, path));
 
   public static function parseJSON<A, X, E>(schema: AnnotatedSchema<String, X, A>, v: JValue): VNel<ParseError<String>, A> {
-    return parseJSON0(schema.schema, v, JPath.root);
+    return parseJSON0(schema.schema, v, SPath.root);
   }
 
-  private static function parseJSON0<X, A>(schemaf: SchemaF<String, X, A>, v: JValue, path: JPath): VNel<ParseError<String>, A> {
+  private static function parseJSON0<X, A>(schemaf: SchemaF<String, X, A>, v: JValue, path: SPath): VNel<ParseError<String>, A> {
     // helper function used to unpack existential type I
     return switch schemaf {
       case IntSchema:
@@ -141,7 +143,7 @@ class SchemaExtensions {
    * This helper function is the companion to alternativeSchema; both
    * are private helpers for the parse and jsonSchema functions, respectively
    */ 
-  private static function parseAlternative<X, A>(id: String, schemaf: SchemaF<String, X, A>, value: JValue, path: JPath): VNel<ParseError<String>, A> {
+  private static function parseAlternative<X, A>(id: String, schemaf: SchemaF<String, X, A>, value: JValue, path: SPath): VNel<ParseError<String>, A> {
     function parseAltPrimitive<B>(schemaf: SchemaF<String, X, B>, assocs: ReadonlyArray<JAssoc>): VNel<ParseError<String>, B> {
       return switch assocs.findOption.fn(_.name == id) {
         case Some(v): parseJSON0(schemaf, v.value, path / id);
@@ -170,7 +172,7 @@ class SchemaExtensions {
     };
   }
 
-  private static function parseObject<O, X, A>(builder: PropsBuilder<String, X, O, A>, v: JValue, path: JPath): VNel<ParseError<String>, A> {
+  private static function parseObject<O, X, A>(builder: PropsBuilder<String, X, O, A>, v: JValue, path: SPath): VNel<ParseError<String>, A> {
     // helper function used to unpack existential type I
     inline function go<I>(ps: PropSchema<String, X, O, I>, k: PropsBuilder<String, X, O, I -> A>): VNel<ParseError<String>, A> {
       var parsed: VNel<ParseError<String>, I> = switch v {
@@ -285,18 +287,4 @@ class SchemaExtensions {
 
   // This value will be reused a bunch, so no need to re-create it all the time.
   private static var wm(default, never): Monoid<Array<JAssoc>> = Arrays.monoid();
-}
-
-class ParseError<E> {
-  public var error(default, null): E;
-  public var path(default, null): JPath;
-
-  public function new(error: E, path: JPath) {
-    this.error = error;
-    this.path = path;
-  }
-
-  public function toString(): String {
-    return '${path.toString()}: ${error}';
-  }
 }
