@@ -222,8 +222,8 @@ class SchemaExtensions {
       case FloatSchema: jNum(value);
       case IntSchema:   jNum(value * 1.0);
       case StrSchema:   jString(value);
-      case ConstSchema(_):  jNull;
-      case AnySchema:       jNull; // cannot render Any to JSON
+      case ConstSchema(_): JObject([]);
+      case AnySchema:      jNull; // cannot render Any to JSON
 
       case ObjectSchema(propSchema): renderObject(propSchema, value);
                           
