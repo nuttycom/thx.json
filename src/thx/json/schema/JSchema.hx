@@ -1,66 +1,111 @@
 package thx.json.schema;
 
-import thx.Url;
+import haxe.ds.Option;
+
 import thx.Either;
+import thx.Functions.identity;
+import thx.LocalDate;
+import thx.Options;
+import thx.Monoid;
 import thx.Nel;
+import thx.Nothing;
+import thx.Validation;
+import thx.Validation.*;
+import thx.Unit;
+import thx.fp.Functions.*;
+import thx.fp.Writer;
+using thx.Bools;
 
-typedef Schema = {
-  @optional id: Url,
-  @optional schema: Url,
-  @optional title: String,
-  @optional description: String,
-  @optional default: JValue,
+import thx.schema.SchemaF;
+import thx.schema.SchemaDSL.*;
+using thx.schema.SchemaFExtensions;
 
-  @optional dependencies: Map<String, Either<JSchema, Array<String>>>,
+import thx.json.JValue;
+using thx.json.schema.SchemaExtensions;
+using thx.json.schema.JSMeta;
 
-  @optional enum: Array<JValue>,
-  @optional type: Array<JType>,
+using thx.Arrays;
+using thx.Eithers;
+using thx.Functions;
+using thx.Iterators;
+using thx.Maps;
+using thx.Options;
 
-  @optional allOf: Array<JSchema>,
-  @optional anyOf: Array<JSchema>,
-  @optional oneOf: Array<JSchema>,
-  @optional not: Option<JSchema>,
+typedef JSchema<E, A> = AnnotatedSchema<E, JSMeta, A>;
 
-  @optional definitions: Map<String, JSchema>
-}
+typedef JSPropsBuilder<E, O, A> = PropsBuilder<E, JSMeta, O, A>;
+typedef JSObjectBuilder<E, A> = ObjectBuilder<E, JSMeta, A>;
 
-/**
- * Schema for boolean/null. This does not add any properties
- * beyond the base Schema class, but is simply present to refine
- * the type for use in the JSchemaADT type.
- */
-typedef PrimSchema = {> Schema,
-}
+class SchemaDSL {
+  private static function liftMS<E, A>(m: CommonMetadata, s: SchemaF<E, JSMeta, A>): JSchema<E, A>
+    return new AnnotatedSchema(Value(CommonM(m)), s);
 
-typedef NumSchema = {> Schema,
-  @optional multipleOf: Option<Int>, //should be int > 0
+  //
+  // Constructors for terminal schema elements
+  //
 
-  @optional minimum: Option<Float>,
-  @optional exclusiveMinimum: Bool,
+  public static function bool<E> (m: CommonMetadata): JSchema<E, Bool>
+    return liftMS(m, BoolSchema);
 
-  @optional maximum: Option<Float>,
-  @optional exclusiveMaximum: Bool
-}
+  public static function int<E> (m: CommonMetadata): JSchema<E, Int>
+    return liftMS(m, IntSchema);
 
-typedef StrSchema {> Schema,
-  @optional minLength: Int, // should be int >= 0 
-  @optional maxLength: Option<Int>, // should be int >= 0
-  @optional pattern: Option<String>, // regex pattern
-}
+  public static function num<E> (m: CommonMetadata): JSchema<E, Float>
+    return liftMS(m, FloatSchema);
 
-typedef ArraySchema {> Schema,
-  @optional items: Nel<JSchema>>,
-  @optional maxItems: Int, // should be int >= 0
-  @optional minItems: Int, // should be int >= 0 
-  @optional uniqueItems: Bool,
-  @optional additionalItems: Either<JSchema, Bool>
-}
+  public static function str<E> (m: CommonMetadata): JSchema<E, String>
+    return liftMS(m, StrSchema);
 
-typedef ObjectSchema {> Schema,
-  @optional maxProperties: Int, // should be int >= 0
-  @optional minProperties: Int, // should be int >= 0 
-  @optional required: Array<String>,
-  @optional properties: Map<String, JSchema>,
-  @optional patternProperties: Map<String, JSchema>,
-  @optional additionalProperties: Either<JSchema, Bool>
+  public static function constS<E, A>(m: CommonMetadata, a: A): JSchema<E, A>
+    return liftMS(m, ConstSchema(a));
+
+  public static function array<E, A>(m: ArrayMetadata, elemSchema: JSchema<E, A>): JSchema<E, Array<A>>
+    return new AnnotatedSchema((Value(ArrayM(m))), ArraySchema(elemSchema));
+
+  public static function object<E, A>(m: CommonMetadata, propSchema: ObjectBuilder<E, JSMeta, A>): JSchema<E, A>
+    return liftMS(m, ObjectSchema(propSchema));
+
+  public static function oneOf<E, A>(m: CommonMetadata, alternatives: Array<Alternative<E, JSMeta, A>>): JSchema<E, A>
+    return liftMS(m, OneOfSchema(alternatives));
+
+  //
+  // Constructors for oneOf alternatives
+  //
+
+  public static function constAlt<E, B>(id: String, m: CommonMetadata, b: B, equal: B -> B -> Bool): Alternative<E, JSMeta, B>
+    return Prism(id, constS(m, b), identity, function(b0) return equal(b, b0).option(b));
+
+  public static function constAltEq<E, B>(id: String, m: CommonMetadata, b: B): Alternative<E, JSMeta, B>
+    return constAlt(id, m, b, thx.Dynamics.equals);
+
+  public static function constEnum<E, B : EnumValue>(id: String, m: CommonMetadata, b: B): Alternative<E, JSMeta, B>
+    return constAlt(id, m, b, Type.enumEq);
+
+  //
+  // Constructors for object properties. TODO: Create some intermediate typedefs to make
+  // a fluent interface for this construction.
+  //
+
+  public static function required<E, O, A>(fieldName: String, m: PropMetadata, valueSchema: JSchema<E, A>, accessor: O -> A, ?dflt: Option<A>): JSPropsBuilder<E, O, A> {
+    var annSchema = new AnnotatedSchema(Prop(m, valueSchema.valMetadata()), valueSchema.schema);
+    return Ap(Required(fieldName, annSchema, accessor, if (dflt == null) None else dflt), Pure(identity));
+  }
+
+  public static function optional<E, O, A>(fieldName: String, m: PropMetadata, valueSchema: JSchema<E, A>, accessor: O -> Option<A>): JSPropsBuilder<E, O, Option<A>> {
+    var annSchema = new AnnotatedSchema(Prop(m, valueSchema.valMetadata()), valueSchema.schema);
+    return Ap(Optional(fieldName, annSchema, accessor), Pure(identity));
+  }
+
+  public static function property<E, O, A>(fieldName: String, m: PropMetadata, valueSchema: JSchema<E, A>, accessor: O -> A, dflt: A): JSPropsBuilder<E, O, A> {
+    var annSchema = new AnnotatedSchema(Prop(m, valueSchema.valMetadata()), valueSchema.schema);
+    return Ap(Required(fieldName, annSchema, accessor, Some(dflt)), Pure(identity));
+  }
+
+  // Convenience constructor for a single-property object schema that simply wraps another schema.
+  public static function wrap<E, A>(fieldName: String, valueSchema: JSchema<E, A>, ?m: CommonMetadata): JSchema<E, A> {
+    return object(
+      if (m == null) valueSchema.commonMetadata() else m, 
+      required(fieldName, {}, valueSchema, function(a: A) return a)
+    );
+  }
 }
