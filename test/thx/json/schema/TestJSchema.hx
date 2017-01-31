@@ -264,7 +264,7 @@ class TestJSchema {
           "properties":{
             "testX":{
               "type":"object",
-              "title":"TestX"
+              "additionalProperties":false
             }
           },
           "required":["testX"],

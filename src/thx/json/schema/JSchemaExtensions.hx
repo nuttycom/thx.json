@@ -41,8 +41,8 @@ class JSchemaExtensions {
       var opts: Map<String, JValue> = if (m.opts == null) new Map() else m.opts;
       if (m.hidden != null) opts["hidden"] = jBool(m.hidden);
 
-      return [ 
-        { name: "type",  value: JString(type) }, 
+      return [
+        { name: "type",  value: JString(type) },
         { name: "title", value: JString(m.title) },
         if (m.id != null) { name: "id", value: JString(m.id) } else null,
         if (m.format != null) { name: "format", value: JString(m.format) } else null,
@@ -58,13 +58,13 @@ class JSchemaExtensions {
       case StrSchema:   JObject(baseSchema("string", m));
       case AnySchema:   JObject(baseSchema("object", m));
 
-      case ConstSchema(_):  
+      case ConstSchema(_):
         JObject(baseSchema("object", m));
 
-      case ObjectSchema(propSchema): 
+      case ObjectSchema(propSchema):
         JObject(baseSchema("object", m).append({ name: "properties", value: JObject(objectProperties(propSchema)) }));
 
-      case ArraySchema(elemSchema): 
+      case ArraySchema(elemSchema):
         var a = schema.arrayMetadata();
         JObject(
           baseSchema("array", m)
@@ -77,7 +77,7 @@ class JSchemaExtensions {
       case MapSchema(valueSchema):
         throw new thx.Error("JSON-Schema generation for dictionary-structured data not yet implemented.");
 
-      case OneOfSchema(alternatives): 
+      case OneOfSchema(alternatives):
         var singularAlternatives = alternatives.traverseOption(
           function(alt) return switch alt {
             case Prism(_, base, _, _): base.constMeta().map(Tuple.of.bind(_, alt));
@@ -90,14 +90,14 @@ class JSchemaExtensions {
               // generate an enum schema
               baseSchema("string", m).concat([
                 { name: "enum", value: JArray(alts.map(function(alt) return JString(alt._1.id()))) },
-                { 
-                  name: "options", 
+                {
+                  name: "options",
                   value: JObject([
                     { name: "enum_titles", value: JArray(alts.map(function(alt) return JString(alt._0.title))) }
                   ])
                 }
               ]);
-            case None: 
+            case None:
               // generate a schema for sums-of-products
               baseSchema("object", m).concat([
                 { name: "oneOf", value: JArray(alternatives.map(alternativeSchema)) }
@@ -105,10 +105,10 @@ class JSchemaExtensions {
           }
         );
 
-      case ParseSchema(base, _, _): 
+      case ParseSchema(base, _, _):
         jsonSchema(new AnnotatedSchema(schema.annotation, base));
 
-      case LazySchema(delay): 
+      case LazySchema(delay):
         jsonSchema(new AnnotatedSchema(schema.annotation, delay()));
     };
   }
@@ -122,19 +122,30 @@ class JSchemaExtensions {
   }
 
   private static function alternativeSchema<E, A>(alt: Alternative<E, JSMeta, A>): JValue {
-    function baseSchema(m: { title: String, ?id: String }, valueProperties: Array<JAssoc>): Array<JAssoc> 
-      return [ 
-        { name: "type",  value: JString("object") }, 
+    function baseSchema(m: { title: String, ?id: String }, valueProperties: Array<JAssoc>): Array<JAssoc>
+      return [
+        { name: "type",  value: JString("object") },
         { name: "title", value: JString(m.title) },
         { name: "properties", value: JObject(valueProperties) },
         { name: "required", value: JArray([ JString(alt.id()) ]) },
         { name: "additionalProperties", value: JBool(false) },
         if (m.id != null) { name: "id", value: JString(m.id) } else null
       ].filterNull();
-    
+
     return switch alt {
-      case Prism(id, s, _, _): 
-        JObject(baseSchema(s.commonMetadata(), [{ name: alt.id(), value: jsonSchema(s) }]));
+      case Prism(id, s, _, _):
+        switch s.schema {
+          // If the value schema is an object with no properties, wipe
+          // out the title in the value schema.
+          // FIXME: these first two cases are workarounds for the lack of metadata
+          // in the Alternative constructor.
+          case ConstSchema(_):
+            var vSchema = jObject(["type" => jString("object"), "additionalProperties" => jBool(false)]);
+            JObject(baseSchema(s.commonMetadata(), [{ name: alt.id(), value: vSchema }]));
+
+          case _:
+            JObject(baseSchema(s.commonMetadata(), [{ name: alt.id(), value: jsonSchema(s) }]));
+        }
     }
   }
 
