@@ -264,7 +264,8 @@ class TestJSchema {
           "properties":{
             "testX":{
               "type":"object",
-              "additionalProperties":false
+              "additionalProperties":false,
+              "options": { "hidden": true }
             }
           },
           "required":["testX"],

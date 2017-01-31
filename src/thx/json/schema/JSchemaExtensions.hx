@@ -140,7 +140,11 @@ class JSchemaExtensions {
           // FIXME: these first two cases are workarounds for the lack of metadata
           // in the Alternative constructor.
           case ConstSchema(_):
-            var vSchema = jObject(["type" => jString("object"), "additionalProperties" => jBool(false)]);
+            var vSchema = jObject([
+              "type" => jString("object"), 
+              "additionalProperties" => jBool(false),
+              "options" => jObject([ "hidden" => jBool(true) ])
+            ]);
             JObject(baseSchema(s.commonMetadata(), [{ name: alt.id(), value: vSchema }]));
 
           case _:
