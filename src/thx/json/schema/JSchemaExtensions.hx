@@ -180,4 +180,35 @@ class JSchemaExtensions {
 
     return schemaAssoc.concat(evalBuilder(k));
   }
+
+  public static function withTitle<E, A>(s: JSchema<E, A>, title: String): JSchema<E, A> {
+    function modify(v: ValMetadata) return switch v {
+      case CommonM(m): 
+        CommonM({
+          title: title,
+          id: m.id,
+          format: m.format,
+          hidden: m.hidden,
+          opts: m.opts
+        });
+      case ArrayM(m):
+        ArrayM({
+          title: title,
+          id: m.id,
+          format: m.format,
+          hidden: m.hidden,
+          opts: m.opts,
+          minItems: m.minItems,
+          maxItems: m.maxItems,
+          uniqueItems: m.uniqueItems,
+        });
+    }
+
+    return s.mapAnnotation(
+      function(s: JSMeta): JSMeta return switch s {
+        case Value(v): Value(modify(v));
+        case Prop(p, v): Prop(p, modify(v));
+      }
+    );
+  }
 }
