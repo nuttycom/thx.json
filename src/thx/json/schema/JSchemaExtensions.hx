@@ -46,6 +46,7 @@ class JSchemaExtensions {
         { name: "title", value: JString(m.title) },
         if (m.id != null) { name: "id", value: JString(m.id) } else null,
         if (m.format != null) { name: "format", value: JString(m.format) } else null,
+        if (m.description != null) { name: "description", value: JString(m.description) } else null,
         if (opts.keys().hasNext()) { name: "options", value: jObject(opts) } else null
       ].filterNull();
     }
@@ -188,6 +189,7 @@ class JSchemaExtensions {
           title: title,
           id: m.id,
           format: m.format,
+          description: m.description,
           hidden: m.hidden,
           opts: m.opts
         });
@@ -196,6 +198,7 @@ class JSchemaExtensions {
           title: title,
           id: m.id,
           format: m.format,
+          description: m.description,
           hidden: m.hidden,
           opts: m.opts,
           minItems: m.minItems,

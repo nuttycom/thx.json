@@ -9,6 +9,7 @@ typedef CommonMetadata = {
   title: String,
   ?id: String,
   ?format: String,
+  ?description: String,
   ?hidden: Bool,
   ?opts: Map<String, JValue>
 };
