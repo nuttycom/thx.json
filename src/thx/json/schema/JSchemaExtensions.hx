@@ -56,7 +56,15 @@ class JSchemaExtensions {
       case IntSchema:   JObject(baseSchema("integer", m));
       case FloatSchema: JObject(baseSchema("number", m));
       case BoolSchema:  JObject(baseSchema("boolean", m));
-      case StrSchema:   JObject(baseSchema("string", m));
+
+      case StrSchema:   
+        var strm = schema.strMetadata();
+        JObject(baseSchema("string", m).concat([
+          if (strm.minLength != null) { name: "minLength", value: JNum(strm.minLength) } else null,
+          if (strm.maxLength != null) { name: "maxLength", value: JNum(strm.maxLength) } else null,
+          if (strm.pattern != null)   { name: "pattern",   value: JString(strm.pattern) } else null
+        ]).filterNull());
+
       case AnySchema:   JObject(baseSchema("object", m));
 
       case ConstSchema(_):
@@ -192,6 +200,18 @@ class JSchemaExtensions {
           description: m.description,
           hidden: m.hidden,
           opts: m.opts
+        });
+      case StrM(m): 
+        StrM({
+          title: title,
+          id: m.id,
+          format: m.format,
+          description: m.description,
+          hidden: m.hidden,
+          opts: m.opts,
+          minLength: m.minLength,
+          maxLength: m.maxLength,
+          pattern: m.pattern
         });
       case ArrayM(m):
         ArrayM({

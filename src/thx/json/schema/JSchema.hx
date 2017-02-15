@@ -53,8 +53,8 @@ class SchemaDSL {
   public static function num<E> (m: CommonMetadata): JSchema<E, Float>
     return liftMS(m, FloatSchema);
 
-  public static function str<E> (m: CommonMetadata): JSchema<E, String>
-    return liftMS(m, StrSchema);
+  public static function str<E> (m: StrMetadata): JSchema<E, String>
+    return new AnnotatedSchema(Value(StrM(m)), StrSchema);
 
   public static function constS<E, A>(m: CommonMetadata, a: A): JSchema<E, A>
     return liftMS(m, ConstSchema(a));

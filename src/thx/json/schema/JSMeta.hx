@@ -14,6 +14,12 @@ typedef CommonMetadata = {
   ?opts: Map<String, JValue>
 };
 
+typedef StrMetadata = { > CommonMetadata,
+  ?minLength: Int,
+  ?maxLength: Int,
+  ?pattern: String
+}
+
 typedef ArrayMetadata = { > CommonMetadata,
   ?minItems: Int,
   ?maxItems: Int,
@@ -27,6 +33,7 @@ typedef PropMetadata = {
 
 enum ValMetadata {
   CommonM(m: CommonMetadata);
+  StrM(m: StrMetadata);
   ArrayM(m: ArrayMetadata);
 }
 
@@ -51,12 +58,21 @@ class JSMetaExtensions {
   public static function commonMetadata<E, A>(s: AnnotatedSchema<E, JSMeta, A>): CommonMetadata
     return switch valMetadata(s) {
       case CommonM(c): c;
+      case StrM(m): m;
       case ArrayM(a): a;
+    };
+
+  public static function strMetadata<E, A>(s: AnnotatedSchema<E, JSMeta, A>): StrMetadata
+    return switch valMetadata(s) {
+      case CommonM(c): c;
+      case StrM(m): m;
+      case ArrayM(a): (a : CommonMetadata);
     };
 
   public static function arrayMetadata<E, A>(s: AnnotatedSchema<E, JSMeta, A>): ArrayMetadata
     return switch valMetadata(s) {
       case CommonM(c): c;
+      case StrM(m): m;
       case ArrayM(a): a;
     };
 

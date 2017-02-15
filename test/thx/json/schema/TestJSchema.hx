@@ -42,7 +42,7 @@ class TestJSchema {
     { title: "TestO", id: "testo" },
     ap2(
       thx.Make.constructor(O),
-      required("s", {}, str({ title: "S" }), function(o: O) return o.s),
+      required("s", {}, str({ title: "S", minLength: 1 }), function(o: O) return o.s),
       optional("b", {}, bool({ title: "B" }), function(o: O) return o.b)
     )
   );
@@ -152,6 +152,7 @@ class TestJSchema {
                     value: JObject([
                       { name: "type", value: JString("string") },
                       { name: "title", value: JString("S") },
+                      { name: "minLength", value: JNum(1) },
                     ])
                   },
                   {
@@ -247,7 +248,7 @@ class TestJSchema {
                     "title":"TestO",
                     "id":"testo",
                     "properties":{
-                      "s":{"type":"string","title":"S"},
+                      "s":{"type":"string","title":"S","minLength":1},
                       "b":{"type":"boolean","title":"B"}
                     }
                   }
