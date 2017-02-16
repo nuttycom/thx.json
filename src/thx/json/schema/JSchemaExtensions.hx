@@ -189,7 +189,7 @@ class JSchemaExtensions {
   public static function requiredProperties<E, O, X>(builder: JSPropsBuilder<E, O, X>): Array<String> {
     function go<E, O, I, J>(schema: JSPropSchema<E, O, I>, k: JSPropsBuilder<E, O, I -> J>): Array<String> {
       var required = switch schema {
-        case Required(field, valueSchema, _, _): [field];
+        case Required(field, valueSchema, _, None): [field];
         case _: [];
       };
 
