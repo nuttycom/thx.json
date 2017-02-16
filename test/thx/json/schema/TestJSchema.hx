@@ -163,10 +163,18 @@ class TestJSchema {
                     ])
                   }
                 ])
+              },
+              { 
+                name: "required",
+                value: JArray([JString("s")])
               }
             ])
           }
         ])
+      },
+      { 
+        name: "required",
+        value: JArray([JString("i"), JString("o")])
       }
     ]);
 
@@ -250,10 +258,12 @@ class TestJSchema {
                     "properties":{
                       "s":{"type":"string","title":"S","minLength":1},
                       "b":{"type":"boolean","title":"B"}
-                    }
+                    },
+                    "required": ["s"]
                   }
                 }
-              }
+              },
+              "required": ["s", "ao"]
             }
           },
           "required":["testS"],

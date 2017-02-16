@@ -71,7 +71,12 @@ class JSchemaExtensions {
         JObject(baseSchema("object", m));
 
       case ObjectSchema(propSchema):
-        JObject(baseSchema("object", m).append({ name: "properties", value: JObject(objectProperties(propSchema)) }));
+        JObject(
+          baseSchema("object", m).concat([
+            { name: "properties", value: JObject(objectProperties(propSchema)) },
+            { name: "required", value: jArray(requiredProperties(propSchema).map(JString)) }
+          ])
+        );
 
       case ArraySchema(elemSchema):
         var a = schema.arrayMetadata();
@@ -163,31 +168,38 @@ class JSchemaExtensions {
   }
 
   public static function objectProperties<E, O, X>(builder: JSPropsBuilder<E, O, X>): Array<JAssoc> {
-    return evalBuilder(builder);
-  }
+    function go<E, O, I, J>(schema: JSPropSchema<E, O, I>, k: JSPropsBuilder<E, O, I -> J>): Array<JAssoc> {
+      var schemaAssoc: Array<JAssoc> = switch schema {
+        case Required(field, valueSchema, _, _):
+          [{ name: field, value: jsonSchema(valueSchema) }];
 
-  // should be inside objectProperties, but haxe doesn't let you write corecursive
-  // functions as inner functions
-  private static function evalBuilder<E, O, X>(builder: JSPropsBuilder<E, O, X>): Array<JAssoc>
+        case Optional(field, valueSchema, _):
+          [{ name: field, value: jsonSchema(valueSchema) }];
+      };
+
+      return schemaAssoc.concat(objectProperties(k));
+    }
+
     return switch builder {
       case Pure(a): [];
-      case Ap(s, k): goOP(s, k);
+      case Ap(s, k): go(s, k);
     };
+  }
 
-  // should be inside objectProperties, but haxe doesn't let you write corecursive
-  // functions as inner functions
-  // TODO: the fact that this requires the call to exemplar is an interesting design smell.
-  // Not so stinky as to stop progress, but funky.
-  private static function goOP<E, O, I, J>(schema: JSPropSchema<E, O, I>, k: JSPropsBuilder<E, O, I -> J>): Array<JAssoc> {
-    var schemaAssoc: Array<JAssoc> = switch schema {
-      case Required(field, valueSchema, _, _):
-        [{ name: field, value: jsonSchema(valueSchema) }];
+  public static function requiredProperties<E, O, X>(builder: JSPropsBuilder<E, O, X>): Array<String> {
+    function go<E, O, I, J>(schema: JSPropSchema<E, O, I>, k: JSPropsBuilder<E, O, I -> J>): Array<String> {
+      var required = switch schema {
+        case Required(field, valueSchema, _, _): [field];
+        case _: [];
+      };
 
-      case Optional(field, valueSchema, _):
-        [{ name: field, value: jsonSchema(valueSchema) }];
+      return required.concat(requiredProperties(k));
+    }
+
+    return switch builder {
+      case Pure(a): [];
+      case Ap(s, k): go(s, k);
     };
-
-    return schemaAssoc.concat(evalBuilder(k));
   }
 
   public static function withTitle<E, A>(s: JSchema<E, A>, title: String): JSchema<E, A> {
