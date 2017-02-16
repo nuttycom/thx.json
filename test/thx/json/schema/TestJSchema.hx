@@ -53,7 +53,7 @@ class TestJSchema {
     { title: "TestT", id: "testt" },
     ap2(
       thx.Make.constructor(T),
-      required("i", {}, int({ title: "I" }), function(t: T) return t.i),
+      property("i", {}, int({ title: "I" }), function(t: T) return t.i, 0),
       required("o", {}, oSchema, function(t: T) return t.o)
     )
   );
@@ -174,7 +174,7 @@ class TestJSchema {
       },
       { 
         name: "required",
-        value: JArray([JString("i"), JString("o")])
+        value: JArray([JString("o")])
       }
     ]);
 
