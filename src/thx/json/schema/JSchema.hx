@@ -72,8 +72,11 @@ class SchemaDSL {
   // Constructors for oneOf alternatives
   //
 
+  public static function alt<E, A, B>(id: String, m: CommonMetadata, base: JSchema<E, B>, f: B -> A, g: A -> Option<B>): Alternative<E, JSMeta, A> 
+    return Prism(id, base, Alt(m), f, g);
+
   public static function constAlt<E, B>(id: String, m: CommonMetadata, b: B, equal: B -> B -> Bool): Alternative<E, JSMeta, B>
-    return Prism(id, constS(m, b), identity, function(b0) return equal(b, b0).option(b));
+    return Prism(id, constS(m, b), Alt(m), identity, function(b0) return equal(b, b0).option(b));
 
   public static function constAltEq<E, B>(id: String, m: CommonMetadata, b: B): Alternative<E, JSMeta, B>
     return constAlt(id, m, b, thx.Dynamics.equals);
@@ -87,24 +90,24 @@ class SchemaDSL {
   //
 
   public static function required<E, O, A>(fieldName: String, m: PropMetadata, valueSchema: JSchema<E, A>, accessor: O -> A, ?dflt: Option<A>): JSPropsBuilder<E, O, A> {
-    var annSchema = new AnnotatedSchema(Prop(m, valueSchema.valMetadata()), valueSchema.schema);
+    var annSchema = new AnnotatedSchema(Prop(m, valueSchema.annotation.valMetadata()), valueSchema.schema);
     return Ap(Required(fieldName, annSchema, accessor, if (dflt == null) None else dflt), Pure(identity));
   }
 
   public static function optional<E, O, A>(fieldName: String, m: PropMetadata, valueSchema: JSchema<E, A>, accessor: O -> Option<A>): JSPropsBuilder<E, O, Option<A>> {
-    var annSchema = new AnnotatedSchema(Prop(m, valueSchema.valMetadata()), valueSchema.schema);
+    var annSchema = new AnnotatedSchema(Prop(m, valueSchema.annotation.valMetadata()), valueSchema.schema);
     return Ap(Optional(fieldName, annSchema, accessor), Pure(identity));
   }
 
   public static function property<E, O, A>(fieldName: String, m: PropMetadata, valueSchema: JSchema<E, A>, accessor: O -> A, dflt: A): JSPropsBuilder<E, O, A> {
-    var annSchema = new AnnotatedSchema(Prop(m, valueSchema.valMetadata()), valueSchema.schema);
+    var annSchema = new AnnotatedSchema(Prop(m, valueSchema.annotation.valMetadata()), valueSchema.schema);
     return Ap(Required(fieldName, annSchema, accessor, Some(dflt)), Pure(identity));
   }
 
   // Convenience constructor for a single-property object schema that simply wraps another schema.
   public static function wrap<E, A>(fieldName: String, valueSchema: JSchema<E, A>, ?m: CommonMetadata): JSchema<E, A> {
     return object(
-      if (m == null) valueSchema.commonMetadata() else m, 
+      if (m == null) valueSchema.annotation.commonMetadata() else m, 
       required(fieldName, {}, valueSchema, function(a: A) return a)
     );
   }

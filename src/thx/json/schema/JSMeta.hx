@@ -5,6 +5,9 @@ import haxe.ds.Option;
 import thx.schema.SchemaF;
 import thx.json.JValue;
 
+typedef BaseMetadata = {
+}
+
 typedef CommonMetadata = {
   title: String,
   ?id: String,
@@ -39,6 +42,7 @@ enum ValMetadata {
 
 enum JSMeta {
   Value(valMeta: ValMetadata);
+  Alt(commonMeta: CommonMetadata);
   Prop(propMeta: PropMetadata, valMeta: ValMetadata);
 }
 
@@ -49,35 +53,34 @@ enum JSMeta {
  * to be imported via 'using'.
  */
 class JSMetaExtensions {
-  public static function valMetadata<E, A>(s: AnnotatedSchema<E, JSMeta, A>): ValMetadata
-    return switch s.annotation {
+  public static function valMetadata(m: JSMeta): ValMetadata
+    return switch m {
       case Value(valMeta): valMeta;
+      case Alt(m): CommonM(m);
       case Prop(_, valMeta): valMeta;
     };
 
-  public static function commonMetadata<E, A>(s: AnnotatedSchema<E, JSMeta, A>): CommonMetadata
-    return switch valMetadata(s) {
+  public static function commonMetadata(m: JSMeta): CommonMetadata
+    return switch valMetadata(m) {
       case CommonM(c): c;
       case StrM(m): m;
       case ArrayM(a): a;
     };
 
-  public static function strMetadata<E, A>(s: AnnotatedSchema<E, JSMeta, A>): StrMetadata
-    return switch valMetadata(s) {
-      case CommonM(c): c;
-      case StrM(m): m;
-      case ArrayM(a): (a : CommonMetadata);
+  public static function strMetadata(m: JSMeta): Option<StrMetadata>
+    return switch valMetadata(m) {
+      case StrM(m): Some(m);
+      case _: None;
     };
 
-  public static function arrayMetadata<E, A>(s: AnnotatedSchema<E, JSMeta, A>): ArrayMetadata
-    return switch valMetadata(s) {
-      case CommonM(c): c;
-      case StrM(m): m;
-      case ArrayM(a): a;
+  public static function arrayMetadata(m: JSMeta): Option<ArrayMetadata>
+    return switch valMetadata(m) {
+      case ArrayM(a): Some(a);
+      case _: None;
     };
 
   public static function constMeta<E, A>(schema: AnnotatedSchema<E, JSMeta, A>): Option<CommonMetadata> {
-    return _constMeta(commonMetadata(schema), schema.schema);
+    return _constMeta(commonMetadata(schema.annotation), schema.schema);
   };
 
   static function _constMeta<E, A>(m: CommonMetadata, s: SchemaF<E, JSMeta, A>): Option<CommonMetadata> {

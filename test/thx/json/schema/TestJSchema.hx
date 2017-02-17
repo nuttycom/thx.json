@@ -71,6 +71,7 @@ class TestJSchema {
     [
       alt(
         "testI",
+        { title: "iTitle" },
         int({ title: "TestI" }), 
         TestI, 
         function(a: TestADT) return switch a {
@@ -80,6 +81,7 @@ class TestJSchema {
       ),
       alt(
         "testS",
+        { title: "sTitle" },
         object(
           { title: "TestS" }, 
           ap2( 
@@ -220,71 +222,72 @@ class TestJSchema {
   }
 
   public function testOneOfSchema() {
-    var expected = '{
-      "type":"object",
-      "title":"TestADT",
-      "id":"testadt",
-      "oneOf":[
+    var expected = {
+      type:"object",
+      title:"TestADT",
+      id:"testadt",
+      oneOf:([
         {
-          "type":"object",
-          "title":"TestI",
-          "properties": {
-            "testI":{
-              "type":"integer",
-              "title":"TestI"
+          type:"object",
+          title:"iTitle",
+          properties: {
+            testI:{
+              type:"integer",
+              title:"TestI"
             }
           },
-          "required":["testI"],
-          "additionalProperties":false
+          required:["testI"],
+          additionalProperties:false
         },
         {
-          "type":"object",
-          "title":"TestS",
-          "properties":{
-            "testS":{
-              "type":"object",
-              "title":"TestS",
-              "properties":{
-                "s":{
-                  "type":"string","title":"S"
+          type:"object",
+          title:"sTitle",
+          properties:{
+            testS:{
+              type:"object",
+              title:"TestS",
+              properties:{
+                s:{
+                  type:"string",
+                  title:"S"
                 },
-                "ao":{
-                  "type":"array",
-                  "title":"ArrayOfO",
-                  "items":{
-                    "type":"object",
-                    "title":"TestO",
-                    "id":"testo",
-                    "properties":{
-                      "s":{"type":"string","title":"S","minLength":1},
-                      "b":{"type":"boolean","title":"B"}
+                ao:{
+                  type:"array",
+                  title:"ArrayOfO",
+                  items:{
+                    type:"object",
+                    title:"TestO",
+                    id:"testo",
+                    properties:{
+                      s:{type:"string", title:"S",minLength:1},
+                      b:{type:"boolean",title:"B"}
                     },
-                    "required": ["s"]
+                    required: ["s"]
                   }
                 }
               },
-              "required": ["s", "ao"]
+              required: ["s", "ao"]
             }
           },
-          "required":["testS"],
-          "additionalProperties":false
+          required:["testS"],
+          additionalProperties:false
         },
         {
-          "type":"object",
-          "title":"TestX",
-          "properties":{
-            "testX":{
-              "type":"object",
-              "additionalProperties":false,
-              "options": { "hidden": true }
+          type:"object",
+          title:"TestX",
+          properties:{
+            testX:{
+              type:"object",
+              additionalProperties:false,
+              options: { hidden: true }
             }
           },
-          "required":["testX"],
-          "additionalProperties":false
+          required:["testX"],
+          additionalProperties:false
         }
-      ]
-    }';
+      ]: Array<Dynamic>)
+    };
 
-    Assert.same(expected.replace(" ", "").replace("\n", ""), Render.renderUnsafe(sumSchema.jsonSchema()));
+    Assert.same(expected, haxe.Json.parse(Render.renderUnsafe(sumSchema.jsonSchema())));
   }
 }

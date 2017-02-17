@@ -101,7 +101,7 @@ class SchemaExtensions {
             case JString(s):
               var id0 = s.toLowerCase();
               switch alternatives.findOption.fn(_.id().toLowerCase() == id0) {
-                case Some(Prism(id, base, f, _)): parseJSON0(base.schema, jNull, path / id).map(f);
+                case Some(Prism(id, base, _, f, _)): parseJSON0(base.schema, jNull, path / id).map(f);
                 case None: fail('Value ${Render.renderUnsafe(v)} cannot be mapped to any of ${alternatives.map.fn(_.id())}.', path);
               };
 
@@ -114,7 +114,7 @@ class SchemaExtensions {
               // This is specific to the encoding which demands that exactly one of the map's keys is 
               // represented among the alternatives
               switch assocs.flatMap(function(a) return alternatives.filter.fn(_.id() == a.name)) {
-                case [Prism(id, base, f, _)]:
+                case [Prism(id, base, _, f, _)]:
                   parseAlternative(id, base.schema, v, path / id).map(f);
 
                 case other:
@@ -235,7 +235,7 @@ class SchemaExtensions {
         var useConstantSchema = alternatives.all.fn(_.isConstantAlt());
         var selected: Array<JValue> = alternatives.filterMap(
           function(alt) return switch alt {
-            case Prism(id, base, _, g): 
+            case Prism(id, base, _, _, g): 
               g(value).map(function(b) return if (useConstantSchema) jString(id) else jObject([id => renderJSON(base, b) ]));
           }
         );

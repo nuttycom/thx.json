@@ -51,24 +51,32 @@ class JSchemaExtensions {
       ].filterNull();
     }
 
-    var m: CommonMetadata = schema.commonMetadata();
+    var m: CommonMetadata = schema.annotation.commonMetadata();
     return switch schema.schema {
       case IntSchema:   JObject(baseSchema("integer", m));
       case FloatSchema: JObject(baseSchema("number", m));
       case BoolSchema:  JObject(baseSchema("boolean", m));
 
       case StrSchema:   
-        var strm = schema.strMetadata();
-        JObject(baseSchema("string", m).concat([
-          if (strm.minLength != null) { name: "minLength", value: JNum(strm.minLength) } else null,
-          if (strm.maxLength != null) { name: "maxLength", value: JNum(strm.maxLength) } else null,
-          if (strm.pattern != null)   { name: "pattern",   value: JString(strm.pattern) } else null
-        ]).filterNull());
+        var strMetaAttrs = schema.annotation.strMetadata().toArray().flatMap(
+          function(strm: StrMetadata) return [
+            if (strm.minLength != null) { name: "minLength", value: JNum(strm.minLength) } else null,
+            if (strm.maxLength != null) { name: "maxLength", value: JNum(strm.maxLength) } else null,
+            if (strm.pattern != null)   { name: "pattern",   value: JString(strm.pattern) } else null
+          ].filterNull()
+        );
 
-      case AnySchema:   JObject(baseSchema("object", m));
+        JObject(baseSchema("string", m).concat(strMetaAttrs));
+
+      case AnySchema:   
+        JObject(baseSchema("object", m));
 
       case ConstSchema(_):
-        JObject(baseSchema("object", m));
+        jObject([
+          "type" => jString("object"), 
+          "additionalProperties" => jBool(false),
+          "options" => jObject([ "hidden" => jBool(true) ])
+        ]);
 
       case ObjectSchema(propSchema):
         JObject(
@@ -79,14 +87,16 @@ class JSchemaExtensions {
         );
 
       case ArraySchema(elemSchema):
-        var a = schema.arrayMetadata();
-        JObject(
-          baseSchema("array", m)
-          .concat([{ name: "items", value: jsonSchema(elemSchema) }])
-          .concat(if (a.minItems != null) [{ name: "minItems", value: jNum(a.minItems) }] else [])
-          .concat(if (a.maxItems != null) [{ name: "maxItems", value: jNum(a.maxItems) }] else [])
-          .concat(if (a.uniqueItems != null) [{ name: "uniqueItems", value: jBool(a.uniqueItems) }] else [])
+        var arrMetaAttrs = schema.annotation.arrayMetadata().toArray().flatMap(
+          function(a: ArrayMetadata) return [
+            { name: "items", value: jsonSchema(elemSchema) },
+            if (a.minItems != null) { name: "minItems", value: jNum(a.minItems) } else null,
+            if (a.maxItems != null) { name: "maxItems", value: jNum(a.maxItems) } else null,
+            if (a.uniqueItems != null) { name: "uniqueItems", value: jBool(a.uniqueItems) } else null
+          ].filterNull()
         );
+
+        JObject(baseSchema("array", m).concat(arrMetaAttrs));
 
       case MapSchema(valueSchema):
         throw new thx.Error("JSON-Schema generation for dictionary-structured data not yet implemented.");
@@ -94,7 +104,7 @@ class JSchemaExtensions {
       case OneOfSchema(alternatives):
         var singularAlternatives = alternatives.traverseOption(
           function(alt) return switch alt {
-            case Prism(_, base, _, _): base.constMeta().map(Tuple.of.bind(_, alt));
+            case Prism(_, base, _, _, _): base.constMeta().map(Tuple.of.bind(_, alt));
           }
         );
 
@@ -136,7 +146,7 @@ class JSchemaExtensions {
   }
 
   private static function alternativeSchema<E, A>(alt: Alternative<E, JSMeta, A>): JValue {
-    function baseSchema(m: { title: String, ?id: String }, valueProperties: Array<JAssoc>): Array<JAssoc>
+    function baseSchema(m: CommonMetadata, valueProperties: Array<JAssoc>): Array<JAssoc>
       return [
         { name: "type",  value: JString("object") },
         { name: "title", value: JString(m.title) },
@@ -147,23 +157,7 @@ class JSchemaExtensions {
       ].filterNull();
 
     return switch alt {
-      case Prism(id, s, _, _):
-        switch s.schema {
-          // If the value schema is an object with no properties, wipe
-          // out the title in the value schema.
-          // FIXME: these first two cases are workarounds for the lack of metadata
-          // in the Alternative constructor.
-          case ConstSchema(_):
-            var vSchema = jObject([
-              "type" => jString("object"), 
-              "additionalProperties" => jBool(false),
-              "options" => jObject([ "hidden" => jBool(true) ])
-            ]);
-            JObject(baseSchema(s.commonMetadata(), [{ name: alt.id(), value: vSchema }]));
-
-          case _:
-            JObject(baseSchema(s.commonMetadata(), [{ name: alt.id(), value: jsonSchema(s) }]));
-        }
+      case Prism(id, s, m, _, _): JObject(baseSchema(m.commonMetadata(), [{ name: alt.id(), value: jsonSchema(s) }]));
     }
   }
 
@@ -242,6 +236,7 @@ class JSchemaExtensions {
     return s.mapAnnotation(
       function(s: JSMeta): JSMeta return switch s {
         case Value(v): Value(modify(v));
+        case Alt(v): Alt(Value(modify(CommonM(v))).commonMetadata()); //nasty hack
         case Prop(p, v): Prop(p, modify(v));
       }
     );
