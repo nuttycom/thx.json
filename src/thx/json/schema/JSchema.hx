@@ -76,7 +76,7 @@ class SchemaDSL {
     return Prism(id, base, Alt(m), f, g);
 
   public static function constAlt<E, B>(id: String, m: CommonMetadata, b: B, equal: B -> B -> Bool): Alternative<E, JSMeta, B>
-    return Prism(id, constS(m, b), Alt(m), identity, function(b0) return equal(b, b0).option(b));
+    return Prism(id, constS({ title: "" }, b), Alt(m), identity, function(b0) return equal(b, b0).option(b));
 
   public static function constAltEq<E, B>(id: String, m: CommonMetadata, b: B): Alternative<E, JSMeta, B>
     return constAlt(id, m, b, thx.Dynamics.equals);

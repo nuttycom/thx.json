@@ -104,7 +104,7 @@ class JSchemaExtensions {
       case OneOfSchema(alternatives):
         var singularAlternatives = alternatives.traverseOption(
           function(alt) return switch alt {
-            case Prism(_, base, _, _, _): base.constMeta().map(Tuple.of.bind(_, alt));
+            case Prism(_, base, m, _, _): base.constMeta().map(const(Tuple.of(m.commonMetadata(), alt)));
           }
         );
 

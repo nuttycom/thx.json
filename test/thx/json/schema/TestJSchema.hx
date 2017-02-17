@@ -200,6 +200,8 @@ class TestJSchema {
       }
     ]);
 
+    trace('result schema:\n${eSchema.jsonSchema()}');
+
     Assert.same(expected, eSchema.jsonSchema());
   }
 
