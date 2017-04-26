@@ -56,11 +56,17 @@ class SchemaDSL {
   public static function str<E> (m: StrMetadata): JSchema<E, String>
     return new AnnotatedSchema(Value(StrM(m)), StrSchema);
 
+  public static function any<E>(m: CommonMetadata): JSchema<E, Any>
+    return liftMS(m, AnySchema);
+
   public static function constS<E, A>(m: CommonMetadata, a: A): JSchema<E, A>
     return liftMS(m, ConstSchema(a));
 
   public static function array<E, A>(m: ArrayMetadata, elemSchema: JSchema<E, A>): JSchema<E, Array<A>>
     return new AnnotatedSchema((Value(ArrayM(m))), ArraySchema(elemSchema));
+
+  public static function dict<E, A>(m: CommonMetadata, elemSchema: JSchema<E, A>): JSchema<E, Map<String, A>>
+    return liftMS(m, MapSchema(elemSchema));
 
   public static function object<E, A>(m: CommonMetadata, propSchema: ObjectBuilder<E, JSMeta, A>): JSchema<E, A>
     return liftMS(m, ObjectSchema(propSchema));
