@@ -98,8 +98,13 @@ class JSchemaExtensions {
 
         JObject(baseSchema("array", m).concat(arrMetaAttrs));
 
-      case MapSchema(valueSchema):
-        throw new thx.Error("JSON-Schema generation for dictionary-structured data not yet implemented.");
+      case MapSchema(requiredKeys, valueSchema):
+        JObject(
+          baseSchema("object", m).concat([
+            { name: "properties", value: JObject(requiredKeys.map(k -> { name: k, value: jsonSchema(valueSchema) })) },
+            { name: "required", value: jArray(requiredKeys.map(JString)) }
+          ])
+        );
 
       case OneOfSchema(alternatives):
         var singularAlternatives = alternatives.traverseOption(

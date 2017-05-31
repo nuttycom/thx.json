@@ -81,7 +81,7 @@ class SchemaExtensions {
           case other: fail('Value ${Render.renderUnsafe(v)} is not a JSON array.', path);
         };
 
-      case MapSchema(elemSchema):
+      case MapSchema(_, elemSchema):
         switch v {
           case JObject(assocs): 
             var validatedAssocs = assocs.traverseValidation(
@@ -89,6 +89,7 @@ class SchemaExtensions {
                Nel.semigroup()
             );
 
+            //TODO: Check that required keys are present
             validatedAssocs.map(Arrays.toStringMap);
 
           case other: 
@@ -229,7 +230,7 @@ class SchemaExtensions {
                           
       case ArraySchema(elemSchema): jArray(value.map(renderJSON.bind(elemSchema, _)));
 
-      case MapSchema(elemSchema): jObject(value.mapValues(renderJSON.bind(elemSchema, _), new Map()));
+      case MapSchema(_, elemSchema): jObject(value.mapValues(renderJSON.bind(elemSchema, _), new Map()));
 
       case OneOfSchema(alternatives): 
         var useConstantSchema = alternatives.all.fn(_.isConstantAlt());
