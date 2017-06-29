@@ -4,6 +4,7 @@ import haxe.ds.Option;
 import haxe.ds.StringMap;
 
 import thx.Any;
+import thx.Functions.identity;
 import thx.Strings;
 import thx.Validation;
 import thx.Validation.*;
@@ -138,6 +139,10 @@ class SchemaExtensions {
           }
         );
 
+      case MetaSchema(prop, ms, sf, _):
+        var prop = Required(prop, ms, identity, None);
+        parseProperty(prop, v, path).flatMapV(mv -> parseObject(sf(mv), v, path));
+
       case LazySchema(base):
         parseJSON0(base(), v, path);
     };
@@ -176,34 +181,37 @@ class SchemaExtensions {
     };
   }
 
+  private static function parseProperty<X, O, A>(ps: PropSchema<String, X, O, A>, v: JValue, path: SPath): VNel<ParseError<String>, A> {
+    return switch v {
+      case JObject(assocs):
+        switch ps {
+          case Required(fieldName, valueSchema, _, dflt):
+            switch assocs.findOption(function(a) return a.name == fieldName) {
+              case Some(assoc):
+                parseJSON0(valueSchema.schema, assoc.value, path / fieldName);
+
+              case None: 
+                dflt.cata(
+                  fail('Value ${Render.renderUnsafe(v)} does not contain key ${fieldName} and no default was available.', path),
+                  successNel
+                );
+            };
+
+          case Optional(fieldName, valueSchema, _):
+            var assoc: Option<JAssoc> = assocs.findOption(function(a) return a.name == fieldName);
+            assoc.traverseValidation(function(a: JAssoc) return parseJSON0(valueSchema.schema, a.value, path / fieldName));
+        };
+
+      case other: 
+        fail('Value ${Render.renderUnsafe(v)} is not a JSON object.', path);
+    };
+  }
+
   private static function parseObject<O, X, A>(builder: PropsBuilder<String, X, O, A>, v: JValue, path: SPath): VNel<ParseError<String>, A> {
     // helper function used to unpack existential type I
     inline function go<I>(ps: PropSchema<String, X, O, I>, k: PropsBuilder<String, X, O, I -> A>): VNel<ParseError<String>, A> {
-      var parsed: VNel<ParseError<String>, I> = switch v {
-        case JObject(assocs):
-          switch ps {
-            case Required(fieldName, valueSchema, _, dflt):
-              switch assocs.findOption(function(a) return a.name == fieldName) {
-                case Some(assoc):
-                  parseJSON0(valueSchema.schema, assoc.value, path / fieldName);
-
-                case None: 
-                  dflt.cata(
-                    fail('Value ${Render.renderUnsafe(v)} does not contain key ${fieldName} and no default was available.', path),
-                    successNel
-                  );
-              };
-
-            case Optional(fieldName, valueSchema, _):
-              var assoc: Option<JAssoc> = assocs.findOption(function(a) return a.name == fieldName);
-              assoc.traverseValidation(function(a: JAssoc) return parseJSON0(valueSchema.schema, a.value, path / fieldName));
-          };
-
-        case other: 
-          fail('Value ${Render.renderUnsafe(v)} is not a JSON object.', path);
-      };
-
-      return parsed.ap(parseObject(k, v, path), Nel.semigroup());
+      var propV: VNel<ParseError<String>, I> = parseProperty(ps, v, path);
+      return propV.ap(parseObject(k, v, path), Nel.semigroup());
     }
 
     return switch builder {
@@ -248,6 +256,19 @@ class SchemaExtensions {
 
       case ParseSchema(base, _, g): 
         renderJSON0(base, g(value));
+
+      case MetaSchema(metaProp, ms, sf, g):
+        function objSchema<B, C>(metaSchema: AnnotatedSchema<E, X, B>, valueProps: ObjectBuilder<E, X, C>): ObjectBuilder<E, X, { meta: B, value: C }> {
+          return ap2(
+            (m: B, v: C) -> { meta: m, value: v },
+            required(metaProp, metaSchema, (v: { meta: B, value: C }) -> v.meta),
+            valueProps.contramap((v: { meta: B, value: C }) -> v.value)
+          );
+        }
+
+        var metadata = g(value);
+        var metaValue = { meta: metadata, value: value };
+        renderObject(objSchema(ms, sf(metadata)), metaValue);
 
       case LazySchema(base):
         renderJSON0(base(), value);

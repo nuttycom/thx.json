@@ -2,9 +2,10 @@ package thx.json.schema;
 
 import haxe.ds.Option;
 
-import thx.Options;
+import thx.Functions.identity;
 import thx.Monoid;
 import thx.Nel;
+import thx.Options;
 import thx.ReadonlyArray;
 import thx.Validation;
 import thx.Validation.*;
@@ -138,6 +139,17 @@ class JSchemaExtensions {
 
       case LazySchema(delay):
         jsonSchema(new AnnotatedSchema(schema.annotation, delay()));
+
+      case MetaSchema(metaProp, metaSchema, valueProps, metaf):
+        // the only thing we can generate a schema for is the metadata field; the
+        // remainder of the properties can only be
+        JObject(
+          baseSchema("object", m).concat([
+            { name: "properties", value: JObject(objectProperties(SchemaDSL.required(metaProp, {}, metaSchema, identity))) },
+            { name: "additionalProperties", value: JBool(true) },
+            { name: "required", value: jArray([metaProp].map(JString)) }
+          ])
+        );
     };
   }
 
