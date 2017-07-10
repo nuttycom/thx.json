@@ -5,9 +5,10 @@ import haxe.ds.Option;
 import thx.Either;
 import thx.Functions.identity;
 import thx.LocalDate;
-import thx.Options;
 import thx.Monoid;
 import thx.Nel;
+import thx.Options;
+import thx.Ord;
 import thx.Nothing;
 import thx.Validation;
 import thx.Validation.*;
@@ -65,8 +66,38 @@ class SchemaDSL {
   public static function array<E, A>(m: ArrayMetadata, elemSchema: JSchema<E, A>): JSchema<E, Array<A>>
     return new AnnotatedSchema((Value(ArrayM(m))), ArraySchema(elemSchema));
 
-  public static function dict<E, A>(m: CommonMetadata, elemSchema: JSchema<E, A>): JSchema<E, Map<String, A>>
-    return liftMS(m, MapSchema(elemSchema));
+  public static function dict<E, A>(m: CommonMetadata, valueSchema: JSchema<E, A>): JSchema<E, Map<String, A>>
+    return liftMS(m, MapSchema(valueSchema));
+
+  public static function keyedDict<E, K, A>(
+      m: CommonMetadata, 
+      keyParser: String -> ParseResult<E, String, K>, 
+      kf: K -> String, 
+      errs: Semigroup<E>,
+      keyOrder: Ord<K>,
+      valueSchema: JSchema<E, A>): JSchema<E, thx.fp.Map<K, A>> {
+    return parse(
+      dict(m, valueSchema),
+      (m: Map<String, A>) -> m.foldLeftWithKeys(
+        function(acc: ParseResult<E, Map<String, A>, thx.fp.Map<K, A>>, k: String, v: A): ParseResult<E, Map<String, A>, thx.fp.Map<K, A>> {
+          return switch [acc, keyParser(k)] {
+            case [PFailure(e, s), PFailure(e0, _)]: PFailure(errs.append(e, e0), s);
+            case [err = PFailure(_, _), _]:         err;
+            case [_, PFailure(e0, _)]:              PFailure(e0, m);
+            case [PSuccess(acc0), PSuccess(k0)]:    PSuccess(acc0.insert(k0, v, keyOrder));
+          }
+        },
+        PSuccess(thx.fp.Map.empty())
+      ),
+      (m: thx.fp.Map<K, A>) -> m.foldLeftAll(
+        (new Map(): Map<String, A>),
+        function(m: Map<String, A>, k: K, v: A): Map<String, A> {
+          m.set(kf(k), v);
+          return m;
+        }
+      )
+    );
+  }
 
   public static function object<E, A>(m: CommonMetadata, propSchema: ObjectBuilder<E, JSMeta, A>): JSchema<E, A>
     return liftMS(m, ObjectSchema(propSchema));
