@@ -105,6 +105,9 @@ class SchemaDSL {
   public static function oneOf<E, A>(m: CommonMetadata, alternatives: Array<Alternative<E, JSMeta, A>>): JSchema<E, A>
     return liftMS(m, OneOfSchema(alternatives));
 
+  public static function meta<E, M, A>(m: CommonMetadata, metaProp: String, metaSchema: JSchema<E, M>, valueProps: M -> ObjectBuilder<E, JSMeta, A>, metaf: A -> M): JSchema<E, A>
+    return liftMS(m, MetaSchema(metaProp, metaSchema, valueProps, metaf));
+
   //
   // Constructors for oneOf alternatives
   //
