@@ -191,10 +191,7 @@ class SchemaExtensions {
                 parseJSON0(valueSchema.schema, assoc.value, path / fieldName);
 
               case None: 
-                dflt.cata(
-                  fail('Value ${Render.renderUnsafe(v)} does not contain key ${fieldName} and no default was available.', path),
-                  successNel
-                );
+                dflt.toLazySuccessNel(() -> new ParseError('Value ${Render.renderUnsafe(v)} does not contain key ${fieldName} and no default was available.', path));
             };
 
           case Optional(fieldName, valueSchema, _):
