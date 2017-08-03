@@ -93,7 +93,8 @@ class JSchemaExtensions {
             { name: "items", value: jsonSchema(elemSchema) },
             if (a.minItems != null) { name: "minItems", value: jNum(a.minItems) } else null,
             if (a.maxItems != null) { name: "maxItems", value: jNum(a.maxItems) } else null,
-            if (a.uniqueItems != null) { name: "uniqueItems", value: jBool(a.uniqueItems) } else null
+            if (a.uniqueItems != null) { name: "uniqueItems", value: jBool(a.uniqueItems) } else null,
+            if (a.headerTemplate != null) { name: "headerTemplate", value: jString(a.headerTemplate) } else null
           ].filterNull()
         );
 

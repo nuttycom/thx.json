@@ -26,7 +26,8 @@ typedef StrMetadata = { > CommonMetadata,
 typedef ArrayMetadata = { > CommonMetadata,
   ?minItems: Int,
   ?maxItems: Int,
-  ?uniqueItems: Bool
+  ?uniqueItems: Bool,
+  ?headerTemplate: String
 };
 
 typedef PropMetadata = { 
