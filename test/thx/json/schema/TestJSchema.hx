@@ -42,8 +42,8 @@ class TestJSchema {
     { title: "TestO", id: "testo" },
     ap2(
       thx.Make.constructor(O),
-      required("s", {}, str({ title: "S", minLength: 1 }), function(o: O) return o.s),
-      optional("b", {}, bool({ title: "B" }), function(o: O) return o.b)
+      required("s", { propIdx: 1 }, str({ title: "S", minLength: 1 }), function(o: O) return o.s),
+      optional("b", { propIdx: 2 }, bool({ title: "B" }), function(o: O) return o.b)
     )
   );
 
@@ -154,14 +154,16 @@ class TestJSchema {
                     value: JObject([
                       { name: "type", value: JString("string") },
                       { name: "title", value: JString("S") },
-                      { name: "minLength", value: JNum(1) },
+                      { name: "propertyOrder", value: JNum(1) },
+                      { name: "minLength", value: JNum(1) }
                     ])
                   },
                   {
                     name: "b",
                     value: JObject([
                       { name: "type", value: JString("boolean") },
-                      { name: "title", value: JString("B") }
+                      { name: "title", value: JString("B") },
+                      { name: "propertyOrder", value: JNum(2) }
                     ])
                   }
                 ])
@@ -179,6 +181,9 @@ class TestJSchema {
         value: JArray([JString("o")])
       }
     ]);
+
+    trace('expected:\n${Render.renderUnsafe(expected)}');
+    trace('result schema:\n${tSchema.jsonSchema()}');
 
     Assert.same(expected, tSchema.jsonSchema());
   }
@@ -199,8 +204,6 @@ class TestJSchema {
         ])
       }
     ]);
-
-    trace('result schema:\n${eSchema.jsonSchema()}');
 
     Assert.same(expected, eSchema.jsonSchema());
   }
@@ -261,8 +264,8 @@ class TestJSchema {
                     title:"TestO",
                     id:"testo",
                     properties:{
-                      s:{type:"string", title:"S",minLength:1},
-                      b:{type:"boolean",title:"B"}
+                      s:{type:"string", title:"S",propertyOrder:1,minLength:1},
+                      b:{type:"boolean",title:"B",propertyOrder:2}
                     },
                     required: ["s"]
                   }

@@ -38,7 +38,7 @@ typedef JSPropSchema<E, O, A> = PropSchema<E, JSMeta, O, A>;
 
 class JSchemaExtensions {
   public static function jsonSchema<E, A>(schema: JSchema<E, A>): JValue {
-    function baseSchema(type: String, m: CommonMetadata): Array<JAssoc> {
+    function baseSchema(type: String, m: CommonMetadata, propM: Option<PropMetadata>): Array<JAssoc> {
       var opts: Map<String, JValue> = if (m.opts == null) new Map() else m.opts;
       if (m.hidden != null) opts["hidden"] = jBool(m.hidden);
 
@@ -49,14 +49,25 @@ class JSchemaExtensions {
         if (m.format != null) { name: "format", value: JString(m.format) } else null,
         if (m.description != null) { name: "description", value: JString(m.description) } else null,
         if (opts.keys().hasNext()) { name: "options", value: jObject(opts) } else null
-      ].filterNull();
+      ].concat(
+        propM.toArray().flatMap(
+          (pm: PropMetadata) -> [
+            if (pm.propIdx != null) { name: "propertyOrder", value: JNum(pm.propIdx) } else null
+          ]
+        )
+      ).filterNull();
     }
 
     var m: CommonMetadata = schema.annotation.commonMetadata();
+    var pm: Option<PropMetadata> = switch schema.annotation {
+      case Prop(pm, _): Some(pm);
+      case _: None;
+    }
+
     return switch schema.schema {
-      case IntSchema:   JObject(baseSchema("integer", m));
-      case FloatSchema: JObject(baseSchema("number", m));
-      case BoolSchema:  JObject(baseSchema("boolean", m));
+      case IntSchema:   JObject(baseSchema("integer", m, pm));
+      case FloatSchema: JObject(baseSchema("number", m, pm));
+      case BoolSchema:  JObject(baseSchema("boolean", m, pm));
 
       case StrSchema:   
         var strMetaAttrs = schema.annotation.strMetadata().toArray().flatMap(
@@ -67,10 +78,10 @@ class JSchemaExtensions {
           ].filterNull()
         );
 
-        JObject(baseSchema("string", m).concat(strMetaAttrs));
+        JObject(baseSchema("string", m, pm).concat(strMetaAttrs));
 
       case AnySchema:   
-        JObject(baseSchema("object", m));
+        JObject(baseSchema("object", m, pm));
 
       case ConstSchema(_):
         jObject([
@@ -81,7 +92,7 @@ class JSchemaExtensions {
 
       case ObjectSchema(propSchema):
         JObject(
-          baseSchema("object", m).concat([
+          baseSchema("object", m, pm).concat([
             { name: "properties", value: JObject(objectProperties(propSchema)) },
             { name: "required", value: jArray(requiredProperties(propSchema).map(JString)) }
           ])
@@ -98,11 +109,11 @@ class JSchemaExtensions {
           ].filterNull()
         );
 
-        JObject(baseSchema("array", m).concat(arrMetaAttrs));
+        JObject(baseSchema("array", m, pm).concat(arrMetaAttrs));
 
       case MapSchema(valueSchema):
         JObject(
-          baseSchema("object", m).concat([
+          baseSchema("object", m, pm).concat([
             { name: "additionalProperties", value: jsonSchema(valueSchema) }
           ])
         );
@@ -118,7 +129,7 @@ class JSchemaExtensions {
           switch singularAlternatives {
             case Some(alts):
               // generate an enum schema
-              baseSchema("string", m).concat([
+              baseSchema("string", m, pm).concat([
                 { name: "enum", value: JArray(alts.map(function(alt) return JString(alt._1.id()))) },
                 {
                   name: "options",
@@ -129,7 +140,7 @@ class JSchemaExtensions {
               ]);
             case None:
               // generate a schema for sums-of-products
-              baseSchema("object", m).concat([
+              baseSchema("object", m, pm).concat([
                 { name: "oneOf", value: JArray(alternatives.map(alternativeSchema)) }
               ]);
           }
@@ -145,7 +156,7 @@ class JSchemaExtensions {
         // the only thing we can generate a schema for is the metadata field; the
         // remainder of the properties can only be
         JObject(
-          baseSchema("object", m).concat([
+          baseSchema("object", m, pm).concat([
             { name: "properties", value: JObject(objectProperties(SchemaDSL.required(metaProp, {}, metaSchema, identity))) },
             { name: "additionalProperties", value: JBool(true) },
             { name: "required", value: jArray([metaProp].map(JString)) }
